@@ -2,7 +2,7 @@
 
 Mapkeeper for Paper: BlueMap's web map behind a sign-in, showing each player only the worlds and players they're allowed to see.
 
-**Status:** early, version 0.1.0, not released. HTTP tests pass against a made-up BlueMap and made-up players (24 tests). It hasn't run on a real server, with real BlueMap, LuckPerms, HouseRules or Latchkey, or in a real browser yet.
+**Status:** early, version 0.1.0, not released. 24 HTTP and config tests pass, plus a bot test (25/25, 2026-11-11) on a throwaway Paper 26.1.2 server with the real BlueMap 5.29, LuckPerms 5.5, HouseRules and Latchkey, signing in through Latchkey's "Open the map" over HTTP. It hasn't been opened in a real browser, tried on 26.2 or 26.3, or run behind Caddy yet.
 
 ## What it does
 
@@ -21,6 +21,10 @@ Needs Paper 26.1 or newer and Java 25. BlueMap, LuckPerms, HouseRules (0.4 or ne
 ```
 
 The jar is `build/libs/Mapkeeper-<version>.jar`. In `plugins/Mapkeeper/config.yml`, set `enabled: true` and `public-url`. Point your HTTPS proxy at `127.0.0.1:8180`, and set BlueMap's web server to `ip: "127.0.0.1"`. In Latchkey, set `page.map-address` to the same address.
+
+## Bot test
+
+`test/live/mapkeeper.mjs` builds a throwaway server in a temp folder, runs bots and browser requests against it, and deletes it. The settings it needs are at the top of the file. It needs Node 22 or newer, and `npm ci` in `test/live` first.
 
 ## Commands
 

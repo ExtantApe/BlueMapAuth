@@ -26,5 +26,11 @@ Kept by this repo's owning session, per `~/Code/CLAUDE.md`, "Test self-audits". 
 | Unsafe config never starts: bind, BlueMap address, URLs, proxies, permission, limits | `SetupTest` (8 tests) |
 
 Gaps, with why:
-- **LiveAccess** (the calls into Latchkey, HouseRules, BlueMap and LuckPerms) has no unit test, because it is all server state. It needs the bot test on a throwaway server: an away kid sees only their circle, an in-game viewer follows chat, missing plugins fail closed. Next on the list.
+- **LiveAccess** (the calls into Latchkey, HouseRules, BlueMap and LuckPerms) is covered by the bot test, `test/live/mapkeeper.mjs`, 25/25 on 2026-11-11 with real plugins. It covers:
+  - an away kid sees only their circle (D54), and in game, chat's reach (D41);
+  - an adults-only world's map is absent for a kid;
+  - losing a circle or a world reaches the map within 30 seconds;
+  - signing out of Latchkey, or removal from the whitelist, ends map access within 30 seconds.
+
+  Not yet covered: running without HouseRules, LuckPerms or Latchkey installed (the fail-closed paths). Those are unit-shaped in `LiveAccess` and planned as a second bot run.
 - No real-browser run of the hand-off page's script yet.
