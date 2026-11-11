@@ -1,0 +1,32 @@
+# Mapkeeper: BlueMap's web map behind a sign-in. See docs/design.md.
+# Off until you turn it on.
+enabled: false
+
+# Where Mapkeeper listens. Keep it on this machine, behind your HTTPS proxy (such as Caddy).
+bind: 127.0.0.1
+port: 8180
+
+# The map's public https:// address, such as https://map.example.org. Sign-in posts must come from here.
+public-url: ""
+
+# BlueMap's own web server. It must listen on this machine only, so Mapkeeper is the only way in:
+# in BlueMap's webserver.conf, set ip: "127.0.0.1".
+bluemap-url: "http://127.0.0.1:8100"
+
+# Where a visitor who isn't signed in is sent to sign in: your Latchkey invite page, such as https://example.org.
+sign-in-url: ""
+
+# Exact addresses of the proxy in front of Mapkeeper. Only these are believed about a visitor's real address.
+trusted-proxies:
+  - 127.0.0.1
+
+# The permission that lets a player into a world. A player sees a world's maps only if they have it.
+# {world} becomes the world's name. Multiverse uses multiverse.access.{world}.
+world-permission: "multiverse.access.{world}"
+
+# Sign-in tries.
+rate-limits:
+  # Tries one visitor gets in 10 minutes. 1 to 20.
+  per-ip-per-10-minutes: 10
+  # Tries everyone together gets in a minute. 1 to 60.
+  site-wide-per-minute: 30

@@ -1,0 +1,29 @@
+name: Mapkeeper
+version: '${version}'
+main: com.extantape.mapkeeper.MapkeeperPlugin
+api-version: '26.1'
+description: BlueMap's web map behind a sign-in, showing each player only the worlds and players they may see.
+website: https://github.com/ExtantApe/Mapkeeper
+# Every one of these is optional. Without one, the part that needs it fails closed (docs/design.md).
+dependencies:
+  server:
+    BlueMap:
+      load: BEFORE
+      required: false
+      join-classpath: true
+    LuckPerms:
+      load: BEFORE
+      required: false
+      join-classpath: true
+    Latchkey:
+      load: BEFORE
+      required: false
+      join-classpath: false
+    HouseRules:
+      load: BEFORE
+      required: false
+      join-classpath: false
+permissions:
+  mapkeeper.admin:
+    description: Use /mapkeeper status and reload.
+    default: op
