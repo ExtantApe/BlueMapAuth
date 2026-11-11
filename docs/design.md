@@ -1,6 +1,6 @@
 # Mapkeeper design (2026-11-10)
 
-Mapkeeper puts BlueMap's web map behind a sign-in and shows each signed-in player only what they may see. Owner decisions: D40 (the name, its own agnostic plugin), D41 (players on the map follow chat's reach rules; anyone Mapkeeper can't check stays hidden), D43 (its own address, `map.<domain>`, with its own host-only cookie from a one-time hand-off; never a cookie on the whole domain).
+Mapkeeper puts BlueMap's web map behind a sign-in and shows each signed-in player only what they may see. Owner decisions: D40 (the name, its own agnostic plugin), D41 (players on the map follow chat's reach rules; anyone Mapkeeper can't check stays hidden), D54 (a viewer who isn't in game sees only players in their circles), D43 (its own address, `map.<domain>`, with its own host-only cookie from a one-time hand-off; never a cookie on the whole domain).
 
 ## Pieces
 
@@ -34,20 +34,13 @@ browser ──https──▶ Caddy (map.<domain>) ──▶ Mapkeeper (127.0.0.1
 | the web app (`/`, `/assets/...`, `/lang/...`) | passed through | the sign-in page instead of the app |
 
 - **Which worlds:** the same permission the server uses, `multiverse.access.<world>`, read through LuckPerms so it works while the player is offline. Can't read it: no map.
-- **Which players:** with the viewer online in game, HouseRules' `mayReach(viewer, target)`, exactly chat's rule. With the viewer offline: **owner question, see below.** Until answered, offline viewers see no other players.
+- **Which players:** with the viewer online in game, HouseRules' `mayReach(viewer, target)`, exactly chat's rule. With the viewer not in game (D54): only players who share a HouseRules circle with them. If HouseRules can't answer, nobody.
 - Every answer carries `Cache-Control: private, no-store` for live data, the same security headers as the invite page, and no CORS.
-
-## Open question for the owner
-
-A viewer on the web map may not be in game. Chat's reach rules need a world, so "the same as chat" doesn't say what an offline viewer sees.
-
-- (a) Players who share a HouseRules circle with them (recommended): the circle part of chat's rule, which needs no world.
-- (b) Nobody until they join the game.
 
 ## Changes in other plugins
 
 - **Latchkey:** a hand-off service (make a token for the welcome view's link, redeem it once, say whether a session is still valid) and the "Open the map" link, shown only when a map address is set.
-- **HouseRules:** if (a) is chosen, `mayReach(UUID viewer, Player target)` for an offline viewer, by circles only.
+- **HouseRules:** `sharesCircle(UUID viewer, UUID target)` for a viewer who isn't in game (D54), by circles only.
 
 ## Tests
 
@@ -58,4 +51,5 @@ Bots and HTTP, on throwaway servers with BlueMap, LuckPerms, HouseRules and Latc
 - a hand-off token works once and expires; a token for another audience or a forged one is refused;
 - signing out on the invite page, or removal from the whitelist, ends map access within 30 seconds;
 - the cookie is host-only, HttpOnly, Secure and Strict;
+- a kid who isn't in game sees only players in their own circle on the map, and nobody else, even players in the same world (D54);
 - nothing from the server's player data leaks: positions only for players the viewer may reach.
