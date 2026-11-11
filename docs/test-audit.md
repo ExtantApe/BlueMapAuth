@@ -32,5 +32,10 @@ Gaps, with why:
   - losing a circle or a world reaches the map within 30 seconds;
   - signing out of Latchkey, or removal from the whitelist, ends map access within 30 seconds.
 
-  Not yet covered: running without HouseRules, LuckPerms or Latchkey installed (the fail-closed paths). Those are unit-shaped in `LiveAccess` and planned as a second bot run.
+  The fail-closed paths have their own run, `MK_TEST_MISSING=1`, which passed 8/8 on 2026-11-11 without HouseRules or LuckPerms:
+  - an away viewer gets no maps and no players;
+  - an operator in game sees only themselves;
+  - `/mapkeeper status` names what's missing.
+
+  Without Latchkey there's no way to make a hand-off token, and a made-up one is refused (`handOffsFromElsewhereOrMalformedAreRefused`).
 - No real-browser run of the hand-off page's script yet.

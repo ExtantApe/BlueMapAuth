@@ -14,6 +14,7 @@
 //   MK_TEST_HOUSERULES  a HouseRules jar with sharesCircle (0.4 or newer, or its offline-circle branch)
 //   MK_TEST_LATCHKEY    a Latchkey jar with the map hand-off (0.4 or newer)
 //   MK_TEST_JAVA        a Java 25 to run Paper with
+//   MK_TEST_MISSING=1   run without HouseRules and LuckPerms instead, to check every missing piece fails closed
 import { spawn } from 'node:child_process'
 import { createHash, randomBytes } from 'node:crypto'
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync, appendFileSync } from 'node:fs'
@@ -23,6 +24,7 @@ import mineflayer from 'mineflayer'
 
 const must = n => { const v = process.env[n]; if (!v) throw new Error('Set ' + n + ' (see the top of test/live/mapkeeper.mjs)'); return v }
 const JAVA = process.env.MK_TEST_JAVA ?? 'java'
+const MISSING = process.env.MK_TEST_MISSING === '1'
 const JARS = must('MK_TEST_JARS'), EULA = must('MK_TEST_EULA'), HOUSERULES = must('MK_TEST_HOUSERULES'), LATCHKEY = must('MK_TEST_LATCHKEY')
 const RUN = path.resolve(must('MK_TEST_RUN'))
 if (![os.tmpdir(), '/tmp', '/private/tmp', '/var/folders'].map(p => path.resolve(p)).some(t => RUN.startsWith(t + path.sep)))
@@ -61,9 +63,9 @@ rmSync(dir, { recursive: true, force: true })
 for (const p of ['Latchkey', 'LuckPerms', 'HouseRules', 'Mapkeeper']) mkdirSync(path.join(dir, 'plugins', p), { recursive: true })
 copyFileSync(jar(/^paper-26\.1\.2\.jar$/), path.join(dir, 'paper.jar'))
 copyFileSync(EULA, path.join(dir, 'eula.txt'))
-copyFileSync(jar(/^LuckPerms-Bukkit-.*\.jar$/), path.join(dir, 'plugins/LuckPerms.jar'))
+if (!MISSING) copyFileSync(jar(/^LuckPerms-Bukkit-.*\.jar$/), path.join(dir, 'plugins/LuckPerms.jar'))
 copyFileSync(jar(/^bluemap-.*-paper\.jar$/), path.join(dir, 'plugins/BlueMap.jar'))
-copyFileSync(HOUSERULES, path.join(dir, 'plugins/HouseRules.jar'))
+if (!MISSING) copyFileSync(HOUSERULES, path.join(dir, 'plugins/HouseRules.jar'))
 copyFileSync(LATCHKEY, path.join(dir, 'plugins/Latchkey.jar'))
 copyFileSync(path.join(LIBS, MK[0]), path.join(dir, 'plugins/Mapkeeper.jar'))
 writeFileSync(path.join(dir, 'plugins/LuckPerms/config.yml'), 'server: global\nstorage-method: yaml\nwatch-files: false\n')
@@ -188,6 +190,33 @@ async function openMap(uuid, name) {
 const mapsIn = s => { try { return JSON.parse(s).maps ?? [] } catch { return null } }
 const playersIn = s => { try { return (JSON.parse(s).players ?? []).map(p => p.uuid) } catch { return null } }
 
+/**
+ * Without HouseRules and LuckPerms (MK_TEST_MISSING=1). Every missing piece answers "no": an away viewer gets no maps
+ * (no LuckPerms to read their permissions) and nobody on the map, and an in-game viewer sees only themselves (no
+ * HouseRules). Adult is an operator here, so has every world's permission while in game.
+ */
+async function missingPieces() {
+  send('op Adult')
+  await sleep(1000)
+  await bot('Mum'); await bot('Adult'); await bot('Guest')
+  const kid = await openMap(KID, 'Kid')
+  check('without LuckPerms or HouseRules, the hand-off still works', kid.status === 204, String(kid.status))
+  const kidMaps = mapsIn((await kid.map.req('/settings.json')).body)
+  check('an away kid gets no maps: there\'s no LuckPerms to read their permissions', Array.isArray(kidMaps) && kidMaps.length === 0, JSON.stringify(kidMaps))
+  check('and no players either', (await kid.map.req('/maps/world/live/players.json')).status === 404)
+  const adult = await openMap(ADULT, 'Adult')
+  const adultMaps = mapsIn((await adult.map.req('/settings.json')).body)
+  check('an operator in game gets the maps they may enter', adultMaps?.length === 3, JSON.stringify(adultMaps))
+  const seen = playersIn((await adult.map.req('/maps/world/live/players.json')).body)
+  check('but sees only themselves: no HouseRules to say who they may reach', seen?.length === 1 && seen[0] === ADULT, JSON.stringify(seen))
+  const status = log.length
+  send('mapkeeper status')
+  await sleep(800)
+  const said = log.slice(status).join('\n')
+  check('/mapkeeper status names what\'s missing and what that means', /LuckPerms: missing, so someone who isn't in game sees no maps/.test(said)
+    && /HouseRules: missing, so the map shows nobody but the viewer themselves/.test(said))
+}
+
 // --- the run ---
 
 let crashed = null
@@ -215,6 +244,7 @@ try {
   check('Mapkeeper serves the map, bound to this machine, and knows BlueMap\'s maps', /127\.0\.0\.1:25694 .* [3-9] map\(s\) known/.test(serving), serving.replace(/^.*Serving/, 'Serving'))
 
   for (const n of ['Kid', 'Mum', 'Adult', 'Guest']) send('whitelist add ' + n)
+  if (MISSING) { await missingPieces(); throw 'done' }
   const perms = [[KID, 'houserules.circle.family'], [MUM, 'houserules.circle.family'],
     [KID, 'mktest.world.world'], [MUM, 'mktest.world.world'], [GUEST, 'mktest.world.world'],
     [ADULT, 'mktest.world.world'], [ADULT, 'mktest.world.world_the_end']]
@@ -303,7 +333,9 @@ try {
   const bound = readFileSync(path.join(bm, 'webserver.conf'), 'utf8')
   check('BlueMap\'s web server is set to 127.0.0.1 only', /\nip: "127\.0\.0\.1"\s*$/.test(bound))
 } catch (e) {
+  if (e === 'done') e = null
   crashed = e
+  if (e)
   console.log('CRASHED  ' + (e.stack ?? e))
 } finally {
   for (const n of Object.keys(bots)) bots[n].quit()
