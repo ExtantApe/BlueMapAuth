@@ -2,7 +2,7 @@
 
 Mapkeeper for Paper: BlueMap's web map behind a sign-in, showing each player only the worlds and players they're allowed to see.
 
-**Status:** early, version 0.1.0, not released. 24 HTTP and config tests pass, plus a bot test (25/25, and 8/8 without HouseRules and LuckPerms, 2026-11-11) on a throwaway Paper 26.1.2 server with the real BlueMap 5.29, LuckPerms 5.5, HouseRules and Latchkey, signing in through Latchkey's "Open the map" over HTTP. It hasn't been opened in a real browser, tried on 26.2 or 26.3, or run behind Caddy yet.
+**Status:** early, version 0.1.0, not released. 24 HTTP and config tests pass, plus a bot test (25/25, and 8/8 without HouseRules and LuckPerms, 2026-11-11) on a throwaway Paper 26.1.2 server with the real BlueMap 5.29, LuckPerms 5.5, HouseRules and Latchkey, signing in through Latchkey's "Open the map" over HTTP. The hand-off page was checked in a real browser (Chromium, 2026-11-11, against made-up data on localhost; `BrowserDemo` in the test sources). The token leaves the address bar, the cookie is invisible to scripts, a reused link explains itself, and the page has no policy errors. It hasn't been tried on 26.2 or 26.3, or behind Caddy, yet.
 
 ## What it does
 

@@ -51,3 +51,9 @@ tasks.test {
 tasks.jar {
     archiveBaseName.set("Mapkeeper")
 }
+
+// Prints the test classpath, for running test/java's BrowserDemo by hand.
+tasks.register("testClasspath") {
+    val cp = sourceSets["test"].runtimeClasspath
+    doLast { println(cp.asPath) }
+}

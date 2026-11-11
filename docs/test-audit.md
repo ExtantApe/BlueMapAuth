@@ -38,4 +38,4 @@ Gaps, with why:
   - `/mapkeeper status` names what's missing.
 
   Without Latchkey there's no way to make a hand-off token, and a made-up one is refused (`handOffsFromElsewhereOrMalformedAreRefused`).
-- No real-browser run of the hand-off page's script yet.
+- The hand-off page's script ran in a real browser on 2026-11-11 (`BrowserDemo`, made-up data). It signed in and landed on the map, the token left the address bar, the cookie wasn't readable by scripts, `settings.json` listed only the allowed map, the other map was 404, a reused link showed its message in a `role=status` line, and the console showed no policy errors. This was a manual check, not automated.
