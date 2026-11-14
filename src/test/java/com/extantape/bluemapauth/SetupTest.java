@@ -36,7 +36,7 @@ class SetupTest {
     }
 
     @Test
-    void mapkeeperNeverListensBeyondThisMachine() {
+    void neverListensBeyondThisMachine() {
         for (String bind : new String[]{"0.0.0.0", "::", "192.168.1.5", "example.org"})
             assertFalse(read(GOOD + "bind: '" + bind + "'\n").ok(), bind);
     }

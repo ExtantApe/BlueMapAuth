@@ -28,13 +28,10 @@ public final class BlueMapAuthPlugin extends JavaPlugin {
 
     @Override
     public void onEnable() {
-        // Renamed from Mapkeeper (D194): bring its folder across once, before anything reads the config.
-        String moved = Migration.copyIfMissing(getDataFolder().toPath().resolveSibling("Mapkeeper"), getDataFolder().toPath());
-        if (moved != null) getLogger().warning(moved);
         saveDefaultConfig();
         start();
         getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, e -> e.registrar().register("bluemapauth",
-                "BlueMapAuth's status, and reloading its settings.", List.of("mapkeeper") /* the old name, for 0.2.x only */, new BasicCommand() {
+                "BlueMapAuth's status, and reloading its settings.", List.of(), new BasicCommand() {
                     @Override
                     public void execute(CommandSourceStack source, String[] args) {
                         command(source.getSender(), args);

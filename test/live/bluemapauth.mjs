@@ -268,7 +268,7 @@ try {
   // --- 2. an away kid: the hand-off, then only their world and their circle (D54) ---
   const kid = await openMap(KID, 'Kid')
   check('the hand-off signs the kid\'s browser in to the map', kid.status === 204, String(kid.status))
-  check('with a host-only, HttpOnly, Secure, Strict cookie', /^mapkeeper=/.test(kid.setCookie) && /HttpOnly/.test(kid.setCookie)
+  check('with a host-only, HttpOnly, Secure, Strict cookie', /^bluemapauth=/.test(kid.setCookie) && /HttpOnly/.test(kid.setCookie)
     && /Secure/.test(kid.setCookie) && /SameSite=Strict/.test(kid.setCookie) && !/domain=/i.test(kid.setCookie), kid.setCookie.replace(/=[^;]+/, '=…'))
   const again = await new Browser(MAP_WEB).req('/handoff', { method: 'POST', body: 'token=' + kid.token, headers: { origin: MAP, 'content-type': 'application/x-www-form-urlencoded' } })
   check('the same hand-off link doesn\'t work twice', again.status === 403, String(again.status))

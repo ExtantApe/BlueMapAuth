@@ -14,4 +14,4 @@ Dated decisions for this repo, newest last.
 
 ## 2026-11-14
 
-- **Name (owner, D194):** Mapkeeper is renamed BlueMapAuth, so people looking for BlueMap add-ons find it. The owner: "yes… BlueMapAuth". Released as 0.2.0, with the old folder copied on first start and `/mapkeeper` and `mapkeeper.admin` working for 0.2.x.
+- **Name (owner, D194):** Mapkeeper is renamed BlueMapAuth, so people looking for BlueMap add-ons find it. The owner: "yes… BlueMapAuth". Released as 0.2.0. The owner asked that no old names be kept, so there's no alias, old permission or folder copy.

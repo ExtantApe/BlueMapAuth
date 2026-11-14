@@ -2,7 +2,7 @@
 
 BlueMapAuth for Paper: BlueMap's web map behind a sign-in, showing each player only the worlds and players they're allowed to see.
 
-**Status:** early, version 0.2.0, renamed from Mapkeeper (D194; see below). 24 HTTP and config tests pass, plus a bot test (25/25, and 8/8 without HouseRules and LuckPerms, 2026-11-11) on a throwaway Paper 26.1.2 server with the real BlueMap 5.29, LuckPerms 5.5, HouseRules and Latchkey, signing in through Latchkey's "Open the map" over HTTP. The hand-off page was checked in a real browser (Chromium, 2026-11-11, against made-up data on localhost; `BrowserDemo` in the test sources). The token leaves the address bar, the cookie is invisible to scripts, a reused link explains itself, and the page has no policy errors. On a copy of a real server on Paper 26.2 and 26.3 build 249 (2026-11-14) it loaded with no errors, switched off, so serving the map on 26.2 and 26.3 is still untested, as is running behind Caddy.
+**Status:** early, version 0.2.0. 24 HTTP and config tests pass, plus a bot test (25/25, and 8/8 without HouseRules and LuckPerms, 2026-11-11) on a throwaway Paper 26.1.2 server with the real BlueMap 5.29, LuckPerms 5.5, HouseRules and Latchkey, signing in through Latchkey's "Open the map" over HTTP. The hand-off page was checked in a real browser (Chromium, 2026-11-11, against made-up data on localhost; `BrowserDemo` in the test sources). The token leaves the address bar, the cookie is invisible to scripts, a reused link explains itself, and the page has no policy errors. On a copy of a real server on Paper 26.2 and 26.3 build 249 (2026-11-14) it loaded with no errors, switched off, so serving the map on 26.2 and 26.3 is still untested, as is running behind Caddy.
 
 ## What it does
 
@@ -30,15 +30,6 @@ The jar is `build/libs/BlueMapAuth-<version>.jar`. In `plugins/BlueMapAuth/confi
 
 - `/bluemapauth status`: whether the map is served, what's wrong with the config, and which plugins it found. Needs `bluemapauth.admin`.
 - `/bluemapauth reload`: re-reads `config.yml`.
-
-## Upgrading from Mapkeeper
-
-BlueMapAuth was called Mapkeeper up to 0.1.0, and renamed so people looking for BlueMap add-ons find it. Nothing else changed in how it works.
-
-- With the server stopped, swap `Mapkeeper-0.1.0.jar` for `BlueMapAuth-0.2.0.jar`.
-- On its first start, BlueMapAuth copies `plugins/Mapkeeper/` to `plugins/BlueMapAuth/` if that doesn't exist yet. The old folder is left as it was.
-- For 0.2.x only, `/mapkeeper` still works and `mapkeeper.admin` still grants `bluemapauth.admin`. Both go in the next release.
-- Map sessions start again: the map's cookie has a new name, so anyone signed in to the map signs in once more through Latchkey.
 
 ## License
 

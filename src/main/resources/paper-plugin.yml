@@ -27,8 +27,3 @@ permissions:
   bluemapauth.admin:
     description: Use /bluemapauth status and reload.
     default: op
-  mapkeeper.admin:
-    description: The old name for bluemapauth.admin, from before the rename (D194). It grants bluemapauth.admin, still works in 0.2.x, and is removed in the next release.
-    default: false
-    children:
-      bluemapauth.admin: true
