@@ -90,7 +90,7 @@ public final class BlueMapAuthPlugin extends JavaPlugin {
                 to.sendMessage(Component.text(server != null ? "Serving the map on port " + server.port() + ", " + access.mapWorlds().size() + " map(s) known."
                         : "Not serving the map.", server != null ? NamedTextColor.GREEN : NamedTextColor.YELLOW));
                 for (String p : problems) to.sendMessage(Component.text("- " + p, NamedTextColor.RED));
-                for (String name : List.of("Latchkey", "BlueMap", "LuckPerms", "HouseRules")) {
+                for (String name : List.of("WelcomeWagon", "BlueMap", "LuckPerms", "Mayor")) {
                     boolean on = getServer().getPluginManager().isPluginEnabled(name);
                     to.sendMessage(Component.text(name + ": " + (on ? "found" : "missing, so " + missing(name)), on ? NamedTextColor.WHITE : NamedTextColor.RED));
                 }
@@ -101,7 +101,7 @@ public final class BlueMapAuthPlugin extends JavaPlugin {
 
     private static String missing(String plugin) {
         return switch (plugin) {
-            case "Latchkey" -> "nobody can sign in to the map";
+            case "WelcomeWagon" -> "nobody can sign in to the map";
             case "BlueMap" -> "there are no maps to show";
             case "LuckPerms" -> "someone who isn't in game sees no maps and no other players";
             default -> "the map shows nobody but the viewer themselves";

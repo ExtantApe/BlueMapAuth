@@ -136,7 +136,7 @@ class MapServerTest {
         return http.send(b.build(), HttpResponse.BodyHandlers.ofString());
     }
 
-    /** A token as Latchkey would issue it, for this player and a live session. */
+    /** A token as WelcomeWagon would issue it, for this player and a live session. */
     String token(UUID who) {
         String t = UUID.randomUUID().toString().replace("-", "") + "0123456789a";
         String session = "s-" + who;
@@ -287,10 +287,10 @@ class MapServerTest {
         }
     }
 
-    // --- sessions end with Latchkey's ---
+    // --- sessions end with WelcomeWagon's ---
 
     @Test
-    void signingOutOfLatchkeyEndsTheMapWithin30Seconds() throws Exception {
+    void signingOutOfWelcomeWagonEndsTheMapWithin30Seconds() throws Exception {
         String kid = signIn(KID);
         liveSessions.remove("s-" + KID);
         assertEquals(200, get("/settings.json", kid).statusCode(), "still within the 30 seconds");

@@ -13,7 +13,7 @@ public-url: ""
 # in BlueMap's webserver.conf, set ip: "127.0.0.1".
 bluemap-url: "http://127.0.0.1:8100"
 
-# Where a visitor who isn't signed in is sent to sign in: your Latchkey invite page, such as https://example.org.
+# Where a visitor who isn't signed in is sent to sign in: your WelcomeWagon invite page, such as https://example.org.
 sign-in-url: ""
 
 # Exact addresses of the proxy in front of BlueMapAuth. Only these are believed about a visitor's real address.

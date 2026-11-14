@@ -1,4 +1,4 @@
-// BlueMapAuth's bot test on a throwaway Paper 26.1.2 server with the real BlueMap, LuckPerms, HouseRules and Latchkey,
+// BlueMapAuth's bot test on a throwaway Paper 26.1.2 server with the real BlueMap, LuckPerms, Mayor and WelcomeWagon,
 // driven from the console, over HTTP and with mineflayer bots. Built in a temp folder on 127.0.0.1, never a copy of a
 // real server, and deleted at the end, pass or fail.
 //
@@ -11,10 +11,10 @@
 //   MK_TEST_JARS        folder with paper-26.1.2.jar, LuckPerms-Bukkit-*.jar, bluemap-*-paper.jar
 //   MK_TEST_EULA        an eula.txt the owner already accepted. It's copied, never written.
 //   MK_TEST_RUN         where the server is built. Must be under a temp folder.
-//   MK_TEST_HOUSERULES  a HouseRules jar with sharesCircle (0.4 or newer, or its offline-circle branch)
-//   MK_TEST_LATCHKEY    a Latchkey jar with the map hand-off (0.4 or newer)
+//   MK_TEST_MAYOR  a Mayor jar with sharesCircle (0.4 or newer, or its offline-circle branch)
+//   MK_TEST_WELCOMEWAGON    a WelcomeWagon jar with the map hand-off (0.4 or newer)
 //   MK_TEST_JAVA        a Java 25 to run Paper with
-//   MK_TEST_MISSING=1   run without HouseRules and LuckPerms instead, to check every missing piece fails closed
+//   MK_TEST_MISSING=1   run without Mayor and LuckPerms instead, to check every missing piece fails closed
 import { spawn } from 'node:child_process'
 import { createHash, randomBytes } from 'node:crypto'
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync, appendFileSync } from 'node:fs'
@@ -25,7 +25,7 @@ import mineflayer from 'mineflayer'
 const must = n => { const v = process.env[n]; if (!v) throw new Error('Set ' + n + ' (see the top of test/live/bluemapauth.mjs)'); return v }
 const JAVA = process.env.MK_TEST_JAVA ?? 'java'
 const MISSING = process.env.MK_TEST_MISSING === '1'
-const JARS = must('MK_TEST_JARS'), EULA = must('MK_TEST_EULA'), HOUSERULES = must('MK_TEST_HOUSERULES'), LATCHKEY = must('MK_TEST_LATCHKEY')
+const JARS = must('MK_TEST_JARS'), EULA = must('MK_TEST_EULA'), MAYOR = must('MK_TEST_MAYOR'), WELCOMEWAGON = must('MK_TEST_WELCOMEWAGON')
 const RUN = path.resolve(must('MK_TEST_RUN'))
 if (![os.tmpdir(), '/tmp', '/private/tmp', '/var/folders'].map(p => path.resolve(p)).some(t => RUN.startsWith(t + path.sep)))
   throw new Error('MK_TEST_RUN must be inside a temp folder, not ' + RUN)
@@ -60,13 +60,13 @@ const KID = offlineUuid('Kid'), MUM = offlineUuid('Mum'), ADULT = offlineUuid('A
 
 const dir = path.join(RUN, 'bluemapauth-26.1.2')
 rmSync(dir, { recursive: true, force: true })
-for (const p of ['Latchkey', 'LuckPerms', 'HouseRules', 'BlueMapAuth']) mkdirSync(path.join(dir, 'plugins', p), { recursive: true })
+for (const p of ['WelcomeWagon', 'LuckPerms', 'Mayor', 'BlueMapAuth']) mkdirSync(path.join(dir, 'plugins', p), { recursive: true })
 copyFileSync(jar(/^paper-26\.1\.2\.jar$/), path.join(dir, 'paper.jar'))
 copyFileSync(EULA, path.join(dir, 'eula.txt'))
 if (!MISSING) copyFileSync(jar(/^LuckPerms-Bukkit-.*\.jar$/), path.join(dir, 'plugins/LuckPerms.jar'))
 copyFileSync(jar(/^bluemap-.*-paper\.jar$/), path.join(dir, 'plugins/BlueMap.jar'))
-if (!MISSING) copyFileSync(HOUSERULES, path.join(dir, 'plugins/HouseRules.jar'))
-copyFileSync(LATCHKEY, path.join(dir, 'plugins/Latchkey.jar'))
+if (!MISSING) copyFileSync(MAYOR, path.join(dir, 'plugins/Mayor.jar'))
+copyFileSync(WELCOMEWAGON, path.join(dir, 'plugins/WelcomeWagon.jar'))
 copyFileSync(path.join(LIBS, MK[0]), path.join(dir, 'plugins/BlueMapAuth.jar'))
 writeFileSync(path.join(dir, 'plugins/LuckPerms/config.yml'), 'server: global\nstorage-method: yaml\nwatch-files: false\n')
 writeFileSync(path.join(dir, 'server.properties'), [
@@ -84,12 +84,12 @@ function configFrom(src, dest, pairs) {
   writeFileSync(dest, t)
 }
 const fromJar = async (j, file) => (await import('node:child_process')).execFileSync('unzip', ['-p', j, file], { encoding: 'utf8' })
-writeFileSync(path.join(dir, 'lk.yml'), await fromJar(LATCHKEY, 'config.yml'))
-configFrom(path.join(dir, 'lk.yml'), path.join(dir, 'plugins/Latchkey/config.yml'), [
+writeFileSync(path.join(dir, 'lk.yml'), await fromJar(WELCOMEWAGON, 'config.yml'))
+configFrom(path.join(dir, 'lk.yml'), path.join(dir, 'plugins/WelcomeWagon/config.yml'), [
   ['enabled: false', 'enabled: true'], ['port: 25680', 'port: ' + LK_WEB], ['public-url: ""', 'public-url: "' + PLAY + '"'],
   ['map-address: ""', 'map-address: "' + MAP + '"']])
-writeFileSync(path.join(dir, 'hr.yml'), await fromJar(HOUSERULES, 'config.yml'))
-configFrom(path.join(dir, 'hr.yml'), path.join(dir, 'plugins/HouseRules/config.yml'), [['circles: []', 'circles:\n  - family']])
+writeFileSync(path.join(dir, 'hr.yml'), await fromJar(MAYOR, 'config.yml'))
+configFrom(path.join(dir, 'hr.yml'), path.join(dir, 'plugins/Mayor/config.yml'), [['circles: []', 'circles:\n  - family']])
 configFrom(path.join(ROOT, 'src/main/resources/config.yml'), path.join(dir, 'plugins/BlueMapAuth/config.yml'), [
   ['enabled: false', 'enabled: true'], ['port: 8180', 'port: ' + MAP_WEB], ['public-url: ""', 'public-url: "' + MAP + '"'],
   ['bluemap-url: "http://127.0.0.1:8100"', 'bluemap-url: "http://127.0.0.1:' + BLUEMAP + '"'],
@@ -100,7 +100,7 @@ const log = []
 let proc, exited
 async function start(done = /Done \(\d/) {
   const from = log.length
-  proc = spawn(JAVA, ['-Xms1536M', '-Xmx1536M', '-Dterminal.jline=false', '-Dterminal.ansi=false', '-Dlatchkey.allowOfflineForTesting=true',
+  proc = spawn(JAVA, ['-Xms1536M', '-Xmx1536M', '-Dterminal.jline=false', '-Dterminal.ansi=false', '-Dwelcomewagon.allowOfflineForTesting=true',
     '-jar', 'paper.jar', 'nogui'], { cwd: dir, stdio: ['pipe', 'pipe', 'pipe'] })
   exited = new Promise(r => proc.on('exit', r))
   process.on('exit', () => { if (proc.exitCode === null) proc.kill('SIGKILL') })
@@ -163,20 +163,20 @@ class Browser {
   async csrf(p) { const m = /name="csrf" value="([^"]+)"/.exec((await this.req(p)).body); if (!m) throw new Error('no form on ' + p); return m[1] }
 }
 
-/** A Latchkey session file as Latchkey writes it, for a cookie the test made. Like having used an invite. */
+/** A WelcomeWagon session file as WelcomeWagon writes it, for a cookie the test made. Like having used an invite. */
 function plantSession(uuid, name) {
   const cookie = randomBytes(32).toString('base64url')
   const now = Math.floor(Date.now() / 1000)
-  const f = path.join(dir, 'plugins/Latchkey/sessions', createHash('sha256').update(cookie).digest('hex') + '.json')
+  const f = path.join(dir, 'plugins/WelcomeWagon/sessions', createHash('sha256').update(cookie).digest('hex') + '.json')
   mkdirSync(path.dirname(f), { recursive: true, mode: 0o700 })
   writeFileSync(f, JSON.stringify({ uuid, name, expires: now + 3600, since: now }) + '\n', { mode: 0o600 })
   return cookie
 }
 
-/** The whole hand-off as a browser does it: Latchkey's welcome view, "Open the map", then the map's hand-off page. */
+/** The whole hand-off as a browser does it: WelcomeWagon's welcome view, "Open the map", then the map's hand-off page. */
 async function openMap(uuid, name) {
   const lk = new Browser(LK_WEB)
-  lk.jar.set('latchkey_session', plantSession(uuid, name))
+  lk.jar.set('welcomewagon_session', plantSession(uuid, name))
   const csrf = await lk.csrf('/')
   const r = await lk.req('/map', { method: 'POST', form: { csrf }, headers: { origin: PLAY } })
   const where = r.headers.get('location') ?? ''
@@ -191,16 +191,16 @@ const mapsIn = s => { try { return JSON.parse(s).maps ?? [] } catch { return nul
 const playersIn = s => { try { return (JSON.parse(s).players ?? []).map(p => p.uuid) } catch { return null } }
 
 /**
- * Without HouseRules and LuckPerms (MK_TEST_MISSING=1). Every missing piece answers "no": an away viewer gets no maps
+ * Without Mayor and LuckPerms (MK_TEST_MISSING=1). Every missing piece answers "no": an away viewer gets no maps
  * (no LuckPerms to read their permissions) and nobody on the map, and an in-game viewer sees only themselves (no
- * HouseRules). Adult is an operator here, so has every world's permission while in game.
+ * Mayor). Adult is an operator here, so has every world's permission while in game.
  */
 async function missingPieces() {
   send('op Adult')
   await sleep(1000)
   await bot('Mum'); await bot('Adult'); await bot('Guest')
   const kid = await openMap(KID, 'Kid')
-  check('without LuckPerms or HouseRules, the hand-off still works', kid.status === 204, String(kid.status))
+  check('without LuckPerms or Mayor, the hand-off still works', kid.status === 204, String(kid.status))
   const kidMaps = mapsIn((await kid.map.req('/settings.json')).body)
   check('an away kid gets no maps: there\'s no LuckPerms to read their permissions', Array.isArray(kidMaps) && kidMaps.length === 0, JSON.stringify(kidMaps))
   check('and no players either', (await kid.map.req('/maps/world/live/players.json')).status === 404)
@@ -208,13 +208,13 @@ async function missingPieces() {
   const adultMaps = mapsIn((await adult.map.req('/settings.json')).body)
   check('an operator in game gets the maps they may enter', adultMaps?.length === 3, JSON.stringify(adultMaps))
   const seen = playersIn((await adult.map.req('/maps/world/live/players.json')).body)
-  check('but sees only themselves: no HouseRules to say who they may reach', seen?.length === 1 && seen[0] === ADULT, JSON.stringify(seen))
+  check('but sees only themselves: no Mayor to say who they may reach', seen?.length === 1 && seen[0] === ADULT, JSON.stringify(seen))
   const status = log.length
   send('bluemapauth status')
   await sleep(800)
   const said = log.slice(status).join('\n')
   check('/bluemapauth status names what\'s missing and what that means', /LuckPerms: missing, so someone who isn't in game sees no maps/.test(said)
-    && /HouseRules: missing, so the map shows nobody but the viewer themselves/.test(said))
+    && /Mayor: missing, so the map shows nobody but the viewer themselves/.test(said))
 }
 
 // --- the run ---
@@ -245,7 +245,7 @@ try {
 
   for (const n of ['Kid', 'Mum', 'Adult', 'Guest']) send('whitelist add ' + n)
   if (MISSING) { await missingPieces(); throw 'done' }
-  const perms = [[KID, 'houserules.circle.family'], [MUM, 'houserules.circle.family'],
+  const perms = [[KID, 'mayor.circle.family'], [MUM, 'mayor.circle.family'],
     [KID, 'mktest.world.world'], [MUM, 'mktest.world.world'], [GUEST, 'mktest.world.world'],
     [ADULT, 'mktest.world.world'], [ADULT, 'mktest.world.world_the_end']]
   for (const [u, node] of perms) { send(`lp user ${u} permission set ${node} true`); await sleep(250) }
@@ -304,7 +304,7 @@ try {
   check('back out of the game, only the circle again', awayAgain?.includes(MUM) && !awayAgain?.includes(ADULT) && !awayAgain?.includes(GUEST), JSON.stringify(awayAgain))
 
   // --- 4. losing the circle, or the world, reaches the map ---
-  send(`lp user ${KID} permission unset houserules.circle.family`)
+  send(`lp user ${KID} permission unset mayor.circle.family`)
   await sleep(31000) // LuckPerms answers for an away player are kept for 30 seconds
   const noCircle = playersIn((await kid.map.req(`/maps/${over}/live/players.json`)).body)
   check('out of the circle, an away kid sees no one else', noCircle && !noCircle.includes(MUM) && !noCircle.includes(ADULT), JSON.stringify(noCircle))
@@ -314,13 +314,13 @@ try {
   check('without the world\'s permission, its map is gone from the kid\'s list', Array.isArray(noWorld) && noWorld.length === 0, JSON.stringify(noWorld))
   check('and its players too', (await kid.map.req(`/maps/${over}/live/players.json`)).status === 404)
 
-  // --- 5. signing out of Latchkey ends the map ---
+  // --- 5. signing out of WelcomeWagon ends the map ---
   const out = await adult.lk.req('/signout', { method: 'POST', form: { csrf: await adult.lk.csrf('/') }, headers: { origin: PLAY } })
   check('the adult signs out on the invite page', out.status === 303, String(out.status))
   await sleep(31000)
   check('and within 30 seconds the map signs them out too', (await adult.map.req('/settings.json')).status === 401)
-  // Taken off the whitelist: Latchkey ends their sessions, so the map ends within 30 seconds; and even a session
-  // planted afterwards (which Latchkey would never issue) can't be handed to the map.
+  // Taken off the whitelist: WelcomeWagon ends their sessions, so the map ends within 30 seconds; and even a session
+  // planted afterwards (which WelcomeWagon would never issue) can't be handed to the map.
   const mum = await openMap(MUM, 'Mum')
   check('Mum, on the whitelist, opens the map', mum.status === 204 && (await mum.map.req('/settings.json')).status === 200, String(mum.status))
   send('whitelist remove Mum')

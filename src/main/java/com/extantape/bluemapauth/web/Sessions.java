@@ -16,13 +16,13 @@ import java.util.function.LongSupplier;
 import java.util.regex.Pattern;
 
 /**
- * The map's own sessions (D43): one random cookie per browser, kept in memory as its SHA-256 only, tied to the Latchkey
- * session it came from. Each is re-checked with Latchkey at most {@link #RECHECK_MS} apart, so signing out there, a
+ * The map's own sessions (D43): one random cookie per browser, kept in memory as its SHA-256 only, tied to the WelcomeWagon
+ * session it came from. Each is re-checked with WelcomeWagon at most {@link #RECHECK_MS} apart, so signing out there, a
  * revoke or a whitelist removal reaches the map within that time. A restart signs every browser out of the map.
  */
 public final class Sessions {
     public static final long RECHECK_MS = 30_000;
-    /** However long the Latchkey session lasts, the map asks for a new hand-off after this. */
+    /** However long the WelcomeWagon session lasts, the map asks for a new hand-off after this. */
     public static final long MAX_AGE_MS = 24 * 60 * 60_000L;
     static final int MAX_SESSIONS = 10_000;
     private static final Pattern COOKIE = Pattern.compile("[A-Za-z0-9_-]{43}");
@@ -55,7 +55,7 @@ public final class Sessions {
         return new Created(v, cookie);
     }
 
-    /** The viewer for a cookie, re-checked with Latchkey when due. Anything doubtful ends the session. */
+    /** The viewer for a cookie, re-checked with WelcomeWagon when due. Anything doubtful ends the session. */
     public Optional<Access.Viewer> lookup(String cookie) {
         if (cookie == null || !COOKIE.matcher(cookie).matches()) return Optional.empty();
         String h = hash(cookie);
@@ -65,7 +65,7 @@ public final class Sessions {
         long now = clock.getAsLong();
         if (now - e.since() > MAX_AGE_MS || now < e.since()) { end(h); return Optional.empty(); }
         if (now - e.checked() >= RECHECK_MS || now < e.checked()) {
-            // Asked outside the lock: Latchkey reads a file, and one slow answer shouldn't hold up every browser.
+            // Asked outside the lock: WelcomeWagon reads a file, and one slow answer shouldn't hold up every browser.
             if (!access.live(e.viewer().session())) { end(h); return Optional.empty(); }
             synchronized (this) { if (byHash.containsKey(h)) byHash.put(h, new Entry(e.viewer(), e.since(), now)); }
         }

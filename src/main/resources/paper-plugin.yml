@@ -15,11 +15,11 @@ dependencies:
       load: BEFORE
       required: false
       join-classpath: true
-    Latchkey:
+    WelcomeWagon:
       load: BEFORE
       required: false
       join-classpath: false
-    HouseRules:
+    Mayor:
       load: BEFORE
       required: false
       join-classpath: false
