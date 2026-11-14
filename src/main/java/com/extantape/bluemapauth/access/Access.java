@@ -1,4 +1,4 @@
-package com.extantape.mapkeeper.access;
+package com.extantape.bluemapauth.access;
 
 import java.util.Map;
 import java.util.Optional;
@@ -6,7 +6,7 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Everything Mapkeeper asks the rest of the server, in one place, so the web side can be tested with made-up answers.
+ * Everything BlueMapAuth asks the rest of the server, in one place, so the web side can be tested with made-up answers.
  * Every method must be safe from any thread, and must answer "no" (empty, false, nothing) when it can't be sure.
  */
 public interface Access {

@@ -1,4 +1,4 @@
-// Mapkeeper's bot test on a throwaway Paper 26.1.2 server with the real BlueMap, LuckPerms, HouseRules and Latchkey,
+// BlueMapAuth's bot test on a throwaway Paper 26.1.2 server with the real BlueMap, LuckPerms, HouseRules and Latchkey,
 // driven from the console, over HTTP and with mineflayer bots. Built in a temp folder on 127.0.0.1, never a copy of a
 // real server, and deleted at the end, pass or fail.
 //
@@ -22,7 +22,7 @@ import os from 'node:os'
 import path from 'node:path'
 import mineflayer from 'mineflayer'
 
-const must = n => { const v = process.env[n]; if (!v) throw new Error('Set ' + n + ' (see the top of test/live/mapkeeper.mjs)'); return v }
+const must = n => { const v = process.env[n]; if (!v) throw new Error('Set ' + n + ' (see the top of test/live/bluemapauth.mjs)'); return v }
 const JAVA = process.env.MK_TEST_JAVA ?? 'java'
 const MISSING = process.env.MK_TEST_MISSING === '1'
 const JARS = must('MK_TEST_JARS'), EULA = must('MK_TEST_EULA'), HOUSERULES = must('MK_TEST_HOUSERULES'), LATCHKEY = must('MK_TEST_LATCHKEY')
@@ -32,8 +32,8 @@ if (![os.tmpdir(), '/tmp', '/private/tmp', '/var/folders'].map(p => path.resolve
 if (!/^eula=true$/m.test(readFileSync(EULA, 'utf8'))) throw new Error('That eula.txt isn\'t accepted. Accepting it is the owner\'s call.')
 const ROOT = new URL('../../', import.meta.url).pathname
 const LIBS = path.join(ROOT, 'build/libs')
-const MK = readdirSync(LIBS).filter(f => /^Mapkeeper-[\d.]+\.jar$/.test(f))
-if (MK.length !== 1) throw new Error('Run ./gradlew clean build first: expected one Mapkeeper jar in build/libs')
+const MK = readdirSync(LIBS).filter(f => /^BlueMapAuth-[\d.]+\.jar$/.test(f))
+if (MK.length !== 1) throw new Error('Run ./gradlew clean build first: expected one BlueMapAuth jar in build/libs')
 
 const PORT = 25618, LK_WEB = 25692, MAP_WEB = 25694, BLUEMAP = 25695
 const PLAY = 'https://play.example.test', MAP = 'https://map.example.test'
@@ -58,21 +58,21 @@ const KID = offlineUuid('Kid'), MUM = offlineUuid('Mum'), ADULT = offlineUuid('A
 
 // --- the server ---
 
-const dir = path.join(RUN, 'mapkeeper-26.1.2')
+const dir = path.join(RUN, 'bluemapauth-26.1.2')
 rmSync(dir, { recursive: true, force: true })
-for (const p of ['Latchkey', 'LuckPerms', 'HouseRules', 'Mapkeeper']) mkdirSync(path.join(dir, 'plugins', p), { recursive: true })
+for (const p of ['Latchkey', 'LuckPerms', 'HouseRules', 'BlueMapAuth']) mkdirSync(path.join(dir, 'plugins', p), { recursive: true })
 copyFileSync(jar(/^paper-26\.1\.2\.jar$/), path.join(dir, 'paper.jar'))
 copyFileSync(EULA, path.join(dir, 'eula.txt'))
 if (!MISSING) copyFileSync(jar(/^LuckPerms-Bukkit-.*\.jar$/), path.join(dir, 'plugins/LuckPerms.jar'))
 copyFileSync(jar(/^bluemap-.*-paper\.jar$/), path.join(dir, 'plugins/BlueMap.jar'))
 if (!MISSING) copyFileSync(HOUSERULES, path.join(dir, 'plugins/HouseRules.jar'))
 copyFileSync(LATCHKEY, path.join(dir, 'plugins/Latchkey.jar'))
-copyFileSync(path.join(LIBS, MK[0]), path.join(dir, 'plugins/Mapkeeper.jar'))
+copyFileSync(path.join(LIBS, MK[0]), path.join(dir, 'plugins/BlueMapAuth.jar'))
 writeFileSync(path.join(dir, 'plugins/LuckPerms/config.yml'), 'server: global\nstorage-method: yaml\nwatch-files: false\n')
 writeFileSync(path.join(dir, 'server.properties'), [
   'server-ip=127.0.0.1', `server-port=${PORT}`, 'online-mode=false', 'white-list=true', 'enforce-whitelist=true',
   'level-type=minecraft\\:flat', 'generate-structures=false', 'spawn-protection=0', 'enable-query=false', 'enable-rcon=false',
-  'view-distance=4', 'simulation-distance=4', 'difficulty=peaceful', 'spawn-monsters=false', 'motd=Mapkeeper test'].join('\n') + '\n')
+  'view-distance=4', 'simulation-distance=4', 'difficulty=peaceful', 'spawn-monsters=false', 'motd=BlueMapAuth test'].join('\n') + '\n')
 
 /** A plugin's shipped config with some lines replaced; each must still be there, so a changed default is noticed. */
 function configFrom(src, dest, pairs) {
@@ -90,7 +90,7 @@ configFrom(path.join(dir, 'lk.yml'), path.join(dir, 'plugins/Latchkey/config.yml
   ['map-address: ""', 'map-address: "' + MAP + '"']])
 writeFileSync(path.join(dir, 'hr.yml'), await fromJar(HOUSERULES, 'config.yml'))
 configFrom(path.join(dir, 'hr.yml'), path.join(dir, 'plugins/HouseRules/config.yml'), [['circles: []', 'circles:\n  - family']])
-configFrom(path.join(ROOT, 'src/main/resources/config.yml'), path.join(dir, 'plugins/Mapkeeper/config.yml'), [
+configFrom(path.join(ROOT, 'src/main/resources/config.yml'), path.join(dir, 'plugins/BlueMapAuth/config.yml'), [
   ['enabled: false', 'enabled: true'], ['port: 8180', 'port: ' + MAP_WEB], ['public-url: ""', 'public-url: "' + MAP + '"'],
   ['bluemap-url: "http://127.0.0.1:8100"', 'bluemap-url: "http://127.0.0.1:' + BLUEMAP + '"'],
   ['sign-in-url: ""', 'sign-in-url: "' + PLAY + '"'], ['world-permission: "multiverse.access.{world}"', 'world-permission: "mktest.world.{world}"'],
@@ -210,10 +210,10 @@ async function missingPieces() {
   const seen = playersIn((await adult.map.req('/maps/world/live/players.json')).body)
   check('but sees only themselves: no HouseRules to say who they may reach', seen?.length === 1 && seen[0] === ADULT, JSON.stringify(seen))
   const status = log.length
-  send('mapkeeper status')
+  send('bluemapauth status')
   await sleep(800)
   const said = log.slice(status).join('\n')
-  check('/mapkeeper status names what\'s missing and what that means', /LuckPerms: missing, so someone who isn't in game sees no maps/.test(said)
+  check('/bluemapauth status names what\'s missing and what that means', /LuckPerms: missing, so someone who isn't in game sees no maps/.test(said)
     && /HouseRules: missing, so the map shows nobody but the viewer themselves/.test(said))
 }
 
@@ -238,10 +238,10 @@ try {
     await sleep(1000)
   }
   check('BlueMap lists the three dimensions\' maps', blueMaps?.length >= 3, JSON.stringify(blueMaps))
-  send('mapkeeper reload')
+  send('bluemapauth reload')
   await waitFor(/Serving the map on 127\.0\.0\.1:\d+ .* [1-9]\d* map\(s\) known/, 20000, log.length - 1).catch(() => {})
   const serving = log.filter(l => /Serving the map/.test(l)).pop() ?? ''
-  check('Mapkeeper serves the map, bound to this machine, and knows BlueMap\'s maps', /127\.0\.0\.1:25694 .* [3-9] map\(s\) known/.test(serving), serving.replace(/^.*Serving/, 'Serving'))
+  check('BlueMapAuth serves the map, bound to this machine, and knows BlueMap\'s maps', /127\.0\.0\.1:25694 .* [3-9] map\(s\) known/.test(serving), serving.replace(/^.*Serving/, 'Serving'))
 
   for (const n of ['Kid', 'Mum', 'Adult', 'Guest']) send('whitelist add ' + n)
   if (MISSING) { await missingPieces(); throw 'done' }
@@ -340,11 +340,11 @@ try {
 } finally {
   for (const n of Object.keys(bots)) bots[n].quit()
   if (proc && proc.exitCode === null) await stop().catch(() => proc.kill('SIGKILL'))
-  const problems = log.filter(l => /Mapkeeper|mapkeeper/.test(l) && /WARN|ERROR|SEVERE|Exception/.test(l))
-  if (problems.length) console.log('Mapkeeper log lines worth a look:\n  ' + problems.slice(0, 10).join('\n  '))
-  writeFileSync(path.join(RUN, 'mapkeeper-server.log'), log.join('\n') + '\n')
+  const problems = log.filter(l => /BlueMapAuth|bluemapauth/.test(l) && /WARN|ERROR|SEVERE|Exception/.test(l))
+  if (problems.length) console.log('BlueMapAuth log lines worth a look:\n  ' + problems.slice(0, 10).join('\n  '))
+  writeFileSync(path.join(RUN, 'bluemapauth-server.log'), log.join('\n') + '\n')
   rmSync(dir, { recursive: true, force: true })
 }
 const failed = results.filter(r => !r.ok).length
-console.log(`SUMMARY  ${results.length - failed}/${results.length} passed${crashed ? ', CRASHED' : ''}. Server deleted; log in ${path.join(RUN, 'mapkeeper-server.log')}`)
+console.log(`SUMMARY  ${results.length - failed}/${results.length} passed${crashed ? ', CRASHED' : ''}. Server deleted; log in ${path.join(RUN, 'bluemapauth-server.log')}`)
 process.exit(failed || crashed ? 1 : 0)

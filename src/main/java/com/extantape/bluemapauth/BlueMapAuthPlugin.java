@@ -1,7 +1,7 @@
-package com.extantape.mapkeeper;
+package com.extantape.bluemapauth;
 
-import com.extantape.mapkeeper.access.LiveAccess;
-import com.extantape.mapkeeper.web.MapServer;
+import com.extantape.bluemapauth.access.LiveAccess;
+import com.extantape.bluemapauth.web.MapServer;
 import io.papermc.paper.command.brigadier.BasicCommand;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
@@ -15,11 +15,11 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * Mapkeeper: BlueMap's web map behind a sign-in (docs/design.md). Off until {@code enabled: true} and every setting is
- * safe. {@code /mapkeeper status} says what's on and why not; {@code /mapkeeper reload} re-reads the config.
+ * BlueMapAuth: BlueMap's web map behind a sign-in (docs/design.md). Off until {@code enabled: true} and every setting is
+ * safe. {@code /bluemapauth status} says what's on and why not; {@code /bluemapauth reload} re-reads the config.
  */
-public final class MapkeeperPlugin extends JavaPlugin {
-    public static final String ADMIN = "mapkeeper.admin";
+public final class BlueMapAuthPlugin extends JavaPlugin {
+    public static final String ADMIN = "bluemapauth.admin";
 
     private MapServer server;
     private LiveAccess access;
@@ -28,10 +28,13 @@ public final class MapkeeperPlugin extends JavaPlugin {
 
     @Override
     public void onEnable() {
+        // Renamed from Mapkeeper (D194): bring its folder across once, before anything reads the config.
+        String moved = Migration.copyIfMissing(getDataFolder().toPath().resolveSibling("Mapkeeper"), getDataFolder().toPath());
+        if (moved != null) getLogger().warning(moved);
         saveDefaultConfig();
         start();
-        getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, e -> e.registrar().register("mapkeeper",
-                "Mapkeeper's status, and reloading its settings.", List.of(), new BasicCommand() {
+        getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, e -> e.registrar().register("bluemapauth",
+                "BlueMapAuth's status, and reloading its settings.", List.of("mapkeeper") /* the old name, for 0.2.x only */, new BasicCommand() {
                     @Override
                     public void execute(CommandSourceStack source, String[] args) {
                         command(source.getSender(), args);
@@ -49,10 +52,10 @@ public final class MapkeeperPlugin extends JavaPlugin {
         reloadConfig();
         Setup.Result r = Setup.read(getConfig());
         problems = r.problems();
-        if (!r.enabled()) { getLogger().info("Mapkeeper is off (enabled: false), so the map isn't served."); return; }
+        if (!r.enabled()) { getLogger().info("BlueMapAuth is off (enabled: false), so the map isn't served."); return; }
         if (!r.ok()) {
             for (String p : r.problems()) getLogger().severe(p);
-            getLogger().severe("Mapkeeper didn't start, so the map isn't served. Fix the lines above, then /mapkeeper reload.");
+            getLogger().severe("BlueMapAuth didn't start, so the map isn't served. Fix the lines above, then /bluemapauth reload.");
             return;
         }
         access = new LiveAccess(r.worldPermission(), getLogger(), System::currentTimeMillis);
@@ -83,7 +86,7 @@ public final class MapkeeperPlugin extends JavaPlugin {
             case "reload" -> {
                 stop();
                 start();
-                to.sendMessage(Component.text(server != null ? "Mapkeeper reloaded and serving the map." : "Mapkeeper reloaded. The map isn't served: see /mapkeeper status.",
+                to.sendMessage(Component.text(server != null ? "BlueMapAuth reloaded and serving the map." : "BlueMapAuth reloaded. The map isn't served: see /bluemapauth status.",
                         server != null ? NamedTextColor.GREEN : NamedTextColor.YELLOW));
             }
             case "status" -> {
@@ -95,7 +98,7 @@ public final class MapkeeperPlugin extends JavaPlugin {
                     to.sendMessage(Component.text(name + ": " + (on ? "found" : "missing, so " + missing(name)), on ? NamedTextColor.WHITE : NamedTextColor.RED));
                 }
             }
-            default -> to.sendMessage(Component.text("Use /mapkeeper status or /mapkeeper reload.", NamedTextColor.RED));
+            default -> to.sendMessage(Component.text("Use /bluemapauth status or /bluemapauth reload.", NamedTextColor.RED));
         }
     }
 

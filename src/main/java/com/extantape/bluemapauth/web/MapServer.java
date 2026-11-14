@@ -1,6 +1,6 @@
-package com.extantape.mapkeeper.web;
+package com.extantape.bluemapauth.web;
 
-import com.extantape.mapkeeper.access.Access;
+import com.extantape.bluemapauth.access.Access;
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
@@ -39,7 +39,7 @@ import java.util.zip.GZIPInputStream;
  * the same as one that doesn't exist.
  */
 public final class MapServer {
-    public static final String COOKIE = "mapkeeper";
+    public static final String COOKIE = "bluemapauth";
     static final Duration MIN_ANSWER = Duration.ofMillis(400);
     static final int MAX_JSON = 4 * 1024 * 1024;
     private static final int MAX_BODY = 256;
@@ -240,7 +240,7 @@ public final class MapServer {
 
     // --- answers ---
 
-    /** BlueMap's web app needs scripts, workers and WebGL, so its pages get a looser policy than Mapkeeper's own. */
+    /** BlueMap's web app needs scripts, workers and WebGL, so its pages get a looser policy than BlueMapAuth's own. */
     static final String APP_CSP = "frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'";
 
     static void securityHeaders(Headers h, String csp) {

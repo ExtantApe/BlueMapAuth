@@ -1,4 +1,4 @@
-package com.extantape.mapkeeper.web;
+package com.extantape.bluemapauth.web;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -6,7 +6,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 
 /**
- * Mapkeeper's own two pages: the hand-off that turns a one-time token into the map's own cookie, and the sign-in page a
+ * BlueMapAuth's own two pages: the hand-off that turns a one-time token into the map's own cookie, and the sign-in page a
  * visitor sees before that. Plain HTML that reads well with a screen reader, and works in light and dark. The one
  * script is allowed by its hash and nothing else is.
  */

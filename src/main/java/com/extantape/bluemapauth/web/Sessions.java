@@ -1,6 +1,6 @@
-package com.extantape.mapkeeper.web;
+package com.extantape.bluemapauth.web;
 
-import com.extantape.mapkeeper.access.Access;
+import com.extantape.bluemapauth.access.Access;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;

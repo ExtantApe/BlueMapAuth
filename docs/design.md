@@ -1,11 +1,11 @@
-# Mapkeeper design (2026-11-10)
+# BlueMapAuth design (2026-11-10)
 
-Mapkeeper puts BlueMap's web map behind a sign-in and shows each signed-in player only what they may see. Owner decisions: D40 (the name, its own agnostic plugin), D41 (players on the map follow chat's reach rules; anyone Mapkeeper can't check stays hidden), D54 (a viewer who isn't in game sees only players in their circles), D43 (its own address, `map.<domain>`, with its own host-only cookie from a one-time hand-off; never a cookie on the whole domain).
+BlueMapAuth puts BlueMap's web map behind a sign-in and shows each signed-in player only what they may see. Owner decisions: D40 (the name, its own agnostic plugin), D41 (players on the map follow chat's reach rules; anyone BlueMapAuth can't check stays hidden), D54 (a viewer who isn't in game sees only players in their circles), D43 (its own address, `map.<domain>`, with its own host-only cookie from a one-time hand-off; never a cookie on the whole domain).
 
 ## Pieces
 
 ```
-browser ──https──▶ Caddy (map.<domain>) ──▶ Mapkeeper (127.0.0.1:8180) ──▶ BlueMap's web server (127.0.0.1:8100)
+browser ──https──▶ Caddy (map.<domain>) ──▶ BlueMapAuth (127.0.0.1:8180) ──▶ BlueMap's web server (127.0.0.1:8100)
                                                │ in-process, by name:
                                                ├─ Latchkey: hand-off tokens, session still valid?
                                                ├─ BlueMap API: which world each map shows
@@ -13,15 +13,15 @@ browser ──https──▶ Caddy (map.<domain>) ──▶ Mapkeeper (127.0.0.1
                                                └─ HouseRules: may the viewer reach that player?
 ```
 
-- **Mapkeeper is the only way in.** BlueMap's own web server listens on 127.0.0.1 only. Mapkeeper also listens on 127.0.0.1 only, behind the same Caddy as the invite page.
+- **BlueMapAuth is the only way in.** BlueMap's own web server listens on 127.0.0.1 only. BlueMapAuth also listens on 127.0.0.1 only, behind the same Caddy as the invite page.
 - **No hard dependencies** (D2). Latchkey, LuckPerms and HouseRules are each read by name. Without one, the part that needs it fails closed: no Latchkey means nobody can sign in; no permissions check means no maps; no HouseRules means no other players on the map.
 
 ## Signing in (D43)
 
 1. On the invite page's welcome view, a signed-in player clicks **Open the map**.
 2. Latchkey makes a one-time token for that player and that session: random, single use, good for 60 seconds, audience `map`. It redirects to `https://map.<domain>/handoff#<token>` (after `#`, so it never reaches a log).
-3. The page posts the token to Mapkeeper, which asks Latchkey to redeem it (in-process). Latchkey answers with the player and the session it came from, once.
-4. Mapkeeper sets its own cookie on `map.<domain>` only: HttpOnly, Secure, SameSite=Strict, no Domain attribute. It lasts no longer than the Latchkey session, and ends when that session ends: Mapkeeper asks Latchkey whether it's still valid (cached for 30 seconds), so a sign-out, a revoke or a whitelist removal reaches the map within 30 seconds.
+3. The page posts the token to BlueMapAuth, which asks Latchkey to redeem it (in-process). Latchkey answers with the player and the session it came from, once.
+4. BlueMapAuth sets its own cookie on `map.<domain>` only: HttpOnly, Secure, SameSite=Strict, no Domain attribute. It lasts no longer than the Latchkey session, and ends when that session ends: BlueMapAuth asks Latchkey whether it's still valid (cached for 30 seconds), so a sign-out, a revoke or a whitelist removal reaches the map within 30 seconds.
 
 ## What each viewer gets
 

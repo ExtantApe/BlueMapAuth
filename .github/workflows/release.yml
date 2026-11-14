@@ -31,4 +31,4 @@ jobs:
       - name: Attach the jar to a GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" build/libs/Mapkeeper-*.jar --title "Mapkeeper $GITHUB_REF_NAME" --notes-file "docs/releases/$GITHUB_REF_NAME.md"
+        run: gh release create "$GITHUB_REF_NAME" build/libs/BlueMapAuth-*.jar --title "BlueMapAuth $GITHUB_REF_NAME" --notes-file "docs/releases/$GITHUB_REF_NAME.md"

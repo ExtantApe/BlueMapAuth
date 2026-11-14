@@ -1,4 +1,4 @@
-package com.extantape.mapkeeper.web;
+package com.extantape.bluemapauth.web;
 
 import java.util.ArrayDeque;
 import java.util.Deque;

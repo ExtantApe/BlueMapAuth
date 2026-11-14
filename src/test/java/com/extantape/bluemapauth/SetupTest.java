@@ -1,4 +1,4 @@
-package com.extantape.mapkeeper;
+package com.extantape.bluemapauth;
 
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;

@@ -1,1 +1,1 @@
-{ "name": "mapkeeper-tests", "private": true, "type": "module", "dependencies": { "mineflayer": "^4.39.0" } }
+{ "name": "bluemapauth-tests", "private": true, "type": "module", "dependencies": { "mineflayer": "^4.39.0" } }

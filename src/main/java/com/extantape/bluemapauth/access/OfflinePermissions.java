@@ -1,4 +1,4 @@
-package com.extantape.mapkeeper.access;
+package com.extantape.bluemapauth.access;
 
 import net.luckperms.api.LuckPermsProvider;
 import net.luckperms.api.model.user.User;

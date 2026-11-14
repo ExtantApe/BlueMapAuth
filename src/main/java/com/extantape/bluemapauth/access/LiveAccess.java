@@ -1,4 +1,4 @@
-package com.extantape.mapkeeper.access;
+package com.extantape.bluemapauth.access;
 
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -17,7 +17,7 @@ import java.util.logging.Logger;
 
 /**
  * The real answers, from the plugins on the server. Latchkey and HouseRules are called by method name with plain Java
- * and Bukkit types, so Mapkeeper builds without them (D40). BlueMap and LuckPerms are used only when installed. Each
+ * and Bukkit types, so BlueMapAuth builds without them (D40). BlueMap and LuckPerms are used only when installed. Each
  * missing piece answers "no" (docs/design.md):
  * <ul>
  *   <li>no Latchkey: nobody can sign in, and every map session ends at its next check;</li>
