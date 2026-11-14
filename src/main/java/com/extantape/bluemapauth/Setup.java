@@ -1,6 +1,6 @@
-package com.extantape.mapkeeper;
+package com.extantape.bluemapauth;
 
-import com.extantape.mapkeeper.web.MapServer;
+import com.extantape.bluemapauth.web.MapServer;
 import org.bukkit.configuration.ConfigurationSection;
 
 import java.net.InetAddress;
@@ -28,7 +28,7 @@ public final class Setup {
         boolean enabled = c.getBoolean("enabled", false);
 
         String bind = c.getString("bind", "127.0.0.1").strip();
-        if (!bind.equals("127.0.0.1") && !bind.equals("::1")) problems.add("bind is \"" + bind + "\". Mapkeeper listens on this machine only: use 127.0.0.1 and put your HTTPS proxy in front.");
+        if (!bind.equals("127.0.0.1") && !bind.equals("::1")) problems.add("bind is \"" + bind + "\". BlueMapAuth listens on this machine only: use 127.0.0.1 and put your HTTPS proxy in front.");
 
         int port = c.getInt("port", 8180);
         if (port < 1 || port > 65535) problems.add("port " + port + " isn't a port number (1 to 65535).");

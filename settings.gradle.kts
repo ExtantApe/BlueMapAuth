@@ -1,1 +1,1 @@
-rootProject.name = "Mapkeeper"
+rootProject.name = "BlueMapAuth"

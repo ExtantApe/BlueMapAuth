@@ -1,27 +1,27 @@
-# Mapkeeper design (2026-11-10)
+# BlueMapAuth design (2026-11-10)
 
-Mapkeeper puts BlueMap's web map behind a sign-in and shows each signed-in player only what they may see. Owner decisions: D40 (the name, its own agnostic plugin), D41 (players on the map follow chat's reach rules; anyone Mapkeeper can't check stays hidden), D54 (a viewer who isn't in game sees only players in their circles), D43 (its own address, `map.<domain>`, with its own host-only cookie from a one-time hand-off; never a cookie on the whole domain).
+BlueMapAuth puts BlueMap's web map behind a sign-in and shows each signed-in player only what they may see. Owner decisions: D40 (the name, its own agnostic plugin), D41 (players on the map follow chat's reach rules; anyone BlueMapAuth can't check stays hidden), D54 (a viewer who isn't in game sees only players in their circles), D43 (its own address, `map.<domain>`, with its own host-only cookie from a one-time hand-off; never a cookie on the whole domain).
 
 ## Pieces
 
 ```
-browser ──https──▶ Caddy (map.<domain>) ──▶ Mapkeeper (127.0.0.1:8180) ──▶ BlueMap's web server (127.0.0.1:8100)
+browser ──https──▶ Caddy (map.<domain>) ──▶ BlueMapAuth (127.0.0.1:8180) ──▶ BlueMap's web server (127.0.0.1:8100)
                                                │ in-process, by name:
-                                               ├─ Latchkey: hand-off tokens, session still valid?
+                                               ├─ WelcomeWagon: hand-off tokens, session still valid?
                                                ├─ BlueMap API: which world each map shows
                                                ├─ LuckPerms: may this player enter that world? (offline too)
-                                               └─ HouseRules: may the viewer reach that player?
+                                               └─ Mayor: may the viewer reach that player?
 ```
 
-- **Mapkeeper is the only way in.** BlueMap's own web server listens on 127.0.0.1 only. Mapkeeper also listens on 127.0.0.1 only, behind the same Caddy as the invite page.
-- **No hard dependencies** (D2). Latchkey, LuckPerms and HouseRules are each read by name. Without one, the part that needs it fails closed: no Latchkey means nobody can sign in; no permissions check means no maps; no HouseRules means no other players on the map.
+- **BlueMapAuth is the only way in.** BlueMap's own web server listens on 127.0.0.1 only. BlueMapAuth also listens on 127.0.0.1 only, behind the same Caddy as the invite page.
+- **No hard dependencies** (D2). WelcomeWagon, LuckPerms and Mayor are each read by name. Without one, the part that needs it fails closed: no WelcomeWagon means nobody can sign in; no permissions check means no maps; no Mayor means no other players on the map.
 
 ## Signing in (D43)
 
 1. On the invite page's welcome view, a signed-in player clicks **Open the map**.
-2. Latchkey makes a one-time token for that player and that session: random, single use, good for 60 seconds, audience `map`. It redirects to `https://map.<domain>/handoff#<token>` (after `#`, so it never reaches a log).
-3. The page posts the token to Mapkeeper, which asks Latchkey to redeem it (in-process). Latchkey answers with the player and the session it came from, once.
-4. Mapkeeper sets its own cookie on `map.<domain>` only: HttpOnly, Secure, SameSite=Strict, no Domain attribute. It lasts no longer than the Latchkey session, and ends when that session ends: Mapkeeper asks Latchkey whether it's still valid (cached for 30 seconds), so a sign-out, a revoke or a whitelist removal reaches the map within 30 seconds.
+2. WelcomeWagon makes a one-time token for that player and that session: random, single use, good for 60 seconds, audience `map`. It redirects to `https://map.<domain>/handoff#<token>` (after `#`, so it never reaches a log).
+3. The page posts the token to BlueMapAuth, which asks WelcomeWagon to redeem it (in-process). WelcomeWagon answers with the player and the session it came from, once.
+4. BlueMapAuth sets its own cookie on `map.<domain>` only: HttpOnly, Secure, SameSite=Strict, no Domain attribute. It lasts no longer than the WelcomeWagon session, and ends when that session ends: BlueMapAuth asks WelcomeWagon whether it's still valid (cached for 30 seconds), so a sign-out, a revoke or a whitelist removal reaches the map within 30 seconds.
 
 ## What each viewer gets
 
@@ -34,17 +34,17 @@ browser ──https──▶ Caddy (map.<domain>) ──▶ Mapkeeper (127.0.0.1
 | the web app (`/`, `/assets/...`, `/lang/...`) | passed through | the sign-in page instead of the app |
 
 - **Which worlds:** the same permission the server uses, `multiverse.access.<world>`, read through LuckPerms so it works while the player is offline. Can't read it: no map.
-- **Which players:** with the viewer online in game, HouseRules' `mayReach(viewer, target)`, exactly chat's rule. With the viewer not in game (D54): only players who share a HouseRules circle with them. If HouseRules can't answer, nobody.
+- **Which players:** with the viewer online in game, Mayor' `mayReach(viewer, target)`, exactly chat's rule. With the viewer not in game (D54): only players who share a Mayor circle with them. If Mayor can't answer, nobody.
 - Every answer carries `Cache-Control: private, no-store` for live data, the same security headers as the invite page, and no CORS.
 
 ## Changes in other plugins
 
-- **Latchkey:** a hand-off service (make a token for the welcome view's link, redeem it once, say whether a session is still valid) and the "Open the map" link, shown only when a map address is set.
-- **HouseRules:** `sharesCircle(UUID viewer, UUID target)` for a viewer who isn't in game (D54), by circles only.
+- **WelcomeWagon:** a hand-off service (make a token for the welcome view's link, redeem it once, say whether a session is still valid) and the "Open the map" link, shown only when a map address is set.
+- **Mayor:** `sharesCircle(UUID viewer, UUID target)` for a viewer who isn't in game (D54), by circles only.
 
 ## Tests
 
-Bots and HTTP, on throwaway servers with BlueMap, LuckPerms, HouseRules and Latchkey:
+Bots and HTTP, on throwaway servers with BlueMap, LuckPerms, Mayor and WelcomeWagon:
 
 - an unsigned visitor gets nothing: not the map list, not a tile, not players.json;
 - a kid account never receives an adult world's map list entry, tiles or markers, and never an adult player in players.json;

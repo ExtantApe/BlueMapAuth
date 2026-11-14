@@ -1,4 +1,4 @@
-package com.extantape.mapkeeper.access;
+package com.extantape.bluemapauth.access;
 
 import de.bluecolored.bluemap.api.BlueMapAPI;
 import org.bukkit.Bukkit;

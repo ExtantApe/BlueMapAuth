@@ -11,3 +11,7 @@ Dated decisions for this repo, newest last.
 ## 2026-11-14
 
 - **First release and going public.** The owner approved release tags for the staged jars (Helm chat, 2026-11-14, "Go (Recommended)"), under the standing yes of 2026-11-07 for a private Minecraft plugin repo to go public at its first release. Before going public: a history audit (no secrets, private terms, server addresses or player data; only noreply commit emails; no build output), the leak check in CI, an MIT LICENSE and a README status line.
+
+## 2026-11-14
+
+- **Name (owner, D194):** Mapkeeper is renamed BlueMapAuth, so people looking for BlueMap add-ons find it. The owner: "yes… BlueMapAuth". Released as 0.2.0. The owner asked that no old names be kept, so there's no alias, old permission or folder copy.

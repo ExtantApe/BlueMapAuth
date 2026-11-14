@@ -1,4 +1,4 @@
-package com.extantape.mapkeeper.access;
+package com.extantape.bluemapauth.access;
 
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -16,14 +16,14 @@ import java.util.function.Predicate;
 import java.util.logging.Logger;
 
 /**
- * The real answers, from the plugins on the server. Latchkey and HouseRules are called by method name with plain Java
- * and Bukkit types, so Mapkeeper builds without them (D40). BlueMap and LuckPerms are used only when installed. Each
+ * The real answers, from the plugins on the server. WelcomeWagon and Mayor are called by method name with plain Java
+ * and Bukkit types, so BlueMapAuth builds without them (D40). BlueMap and LuckPerms are used only when installed. Each
  * missing piece answers "no" (docs/design.md):
  * <ul>
- *   <li>no Latchkey: nobody can sign in, and every map session ends at its next check;</li>
+ *   <li>no WelcomeWagon: nobody can sign in, and every map session ends at its next check;</li>
  *   <li>no BlueMap: no maps;</li>
  *   <li>a viewer who isn't in game, and no LuckPerms: no maps, and only themselves;</li>
- *   <li>no HouseRules: nobody but the viewer themselves on the map.</li>
+ *   <li>no Mayor: nobody but the viewer themselves on the map.</li>
  * </ul>
  */
 public final class LiveAccess implements Access {
@@ -55,7 +55,7 @@ public final class LiveAccess implements Access {
 
     @Override
     public Optional<Viewer> redeem(String token) {
-        Object r = call("Latchkey", "redeemMapHandoff", new Class<?>[]{String.class}, token);
+        Object r = call("WelcomeWagon", "redeemMapHandoff", new Class<?>[]{String.class}, token);
         if (!(r instanceof Map<?, ?> m)) return Optional.empty();
         Object u = m.get("uuid"), n = m.get("name"), s = m.get("session");
         if (!(u instanceof String us) || !(n instanceof String ns) || !(s instanceof String ss)) return Optional.empty();
@@ -68,7 +68,7 @@ public final class LiveAccess implements Access {
 
     @Override
     public boolean live(String session) {
-        return Boolean.TRUE.equals(call("Latchkey", "handoffSessionLive", new Class<?>[]{String.class}, session));
+        return Boolean.TRUE.equals(call("WelcomeWagon", "handoffSessionLive", new Class<?>[]{String.class}, session));
     }
 
     @Override
@@ -87,7 +87,7 @@ public final class LiveAccess implements Access {
     public Set<UUID> visible(UUID viewer, Set<UUID> players) {
         Set<UUID> out = new HashSet<>();
         if (players.contains(viewer)) out.add(viewer);
-        if (Bukkit.getPluginManager().getPlugin("HouseRules") == null) return out;
+        if (Bukkit.getPluginManager().getPlugin("Mayor") == null) return out;
         Player me = Bukkit.getPlayer(viewer);
         Predicate<String> mine = me == null ? offlinePermissions(viewer) : null;
         if (me == null && mine == null) return out;
@@ -96,8 +96,8 @@ public final class LiveAccess implements Access {
             Player them = Bukkit.getPlayer(id);
             if (them == null) continue;
             Object ok = me != null
-                    ? call("HouseRules", "mayReach", new Class<?>[]{Player.class, Player.class}, me, them)
-                    : call("HouseRules", "sharesCircle", new Class<?>[]{Predicate.class, Player.class}, mine, them);
+                    ? call("Mayor", "mayReach", new Class<?>[]{Player.class, Player.class}, me, them)
+                    : call("Mayor", "sharesCircle", new Class<?>[]{Predicate.class, Player.class}, mine, them);
             if (Boolean.TRUE.equals(ok)) out.add(id);
         }
         return out;

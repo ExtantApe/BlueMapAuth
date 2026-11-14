@@ -3,7 +3,7 @@ plugins {
 }
 
 group = "com.extantape"
-version = "0.1.0"
+version = "0.2.0"
 
 java {
     toolchain.languageVersion.set(JavaLanguageVersion.of(25))
@@ -21,7 +21,7 @@ val blueMapApi = "de.bluecolored:bluemap-api:2.7.8"
 val luckPermsApi = "net.luckperms:api:5.4"
 
 dependencies {
-    // All optional at run time: each is used only when its plugin is installed, and Mapkeeper fails closed without it.
+    // All optional at run time: each is used only when its plugin is installed, and BlueMapAuth fails closed without it.
     compileOnly(paperApi)
     compileOnly(blueMapApi)
     compileOnly(luckPermsApi)
@@ -49,7 +49,7 @@ tasks.test {
 }
 
 tasks.jar {
-    archiveBaseName.set("Mapkeeper")
+    archiveBaseName.set("BlueMapAuth")
 }
 
 // Prints the test classpath, for running test/java's BrowserDemo by hand.
