@@ -265,6 +265,55 @@ class MapServerTest {
     }
 
     @Test
+    void encodedDottedOrRecasedPathsNeverReachAKidsHiddenMap() throws Exception {
+        // K70 security review, 2026-11-24: BlueMap decodes and normalises paths, and the Mac's disk ignores case.
+        String kid = signIn(KID);
+        int before = upstreamSaw.size();
+        for (String p : List.of("/%6Daps/adult_map/settings.json", "/maps/adult_map/live/player%73.json", "/maps/family_map/live/player%73.json",
+                "/./maps/adult_map/settings.json", "/maps/./adult_map/settings.json", "/maps/family_map/../adult_map/settings.json",
+                "/Maps/adult_map/settings.json", "/MAPS/adult_map/live/players.json", "/maps//adult_map/settings.json",
+                "/maps/adult_map%2Fsettings.json", "/maps/family_map/", "/.hidden", "/maps/family_map/live/sse",
+                "/maps/adult_map/live/sse", "/maps/family_map/live/", "/maps/family_map/live/other.json", "/random.json", "/x/y")) {
+            var r = get(p, kid);
+            assertTrue(r.statusCode() == 400 || r.statusCode() == 404, p + " -> " + r.statusCode());
+            assertFalse(r.body().contains("secret base") || r.body().contains(ADULT.toString()), p);
+        }
+        assertEquals(before, upstreamSaw.size(), "BlueMap is never asked for any of them");
+    }
+
+    @Test
+    void liveMarkersAreNeverPassedOn() throws Exception {
+        online.add(ADULT);
+        String adult = signIn(ADULT);
+        var r = get("/maps/adult_map/live/markers.json", adult);
+        assertEquals(200, r.statusCode());
+        assertEquals("{}", r.body(), "markers can carry positions Mayor hasn't checked");
+    }
+
+    @Test
+    void routeAllowsOnlyTheExactList() {
+        assertEquals(MapServer.Kind.PAGE, MapServer.route("/").kind());
+        assertEquals(MapServer.Kind.PAGE, MapServer.route("/index.html").kind());
+        assertEquals(MapServer.Kind.SETTINGS, MapServer.route("/settings.json").kind());
+        assertEquals(MapServer.Kind.STATIC, MapServer.route("/assets/index-abc.js").kind());
+        assertEquals(MapServer.Kind.STATIC, MapServer.route("/lang/en.conf").kind());
+        assertEquals(MapServer.Kind.STATIC, MapServer.route("/favicon.png").kind());
+        assertEquals(new MapServer.Route(MapServer.Kind.MAP_FILE, "family_map"), MapServer.route("/maps/family_map/tiles/0/x-1/z2.prbm"));
+        assertEquals(new MapServer.Route(MapServer.Kind.MAP_PLAYERS, "m"), MapServer.route("/maps/m/live/players.json"));
+        assertEquals(new MapServer.Route(MapServer.Kind.MAP_MARKERS, "m"), MapServer.route("/maps/m/live/markers.json"));
+        for (String bad : List.of("", "x", "/%2e", "/a\\b", "//", "/./x", "/../x", "/a/.", "/a/..", "/maps/m/", "/.git/config"))
+            assertEquals(MapServer.Kind.BAD, MapServer.route(bad).kind(), bad);
+        for (String nf : List.of("/Maps/m/settings.json", "/maps/m", "/maps/m.x/settings.json", "/maps/m/live/sse", "/other.json", "/app.js", "/x/y"))
+            assertEquals(MapServer.Kind.NOT_FOUND, MapServer.route(nf).kind(), nf);
+    }
+
+    @Test
+    void aMalformedPercentInAHandOffIsRefusedNot502() throws Exception {
+        assertNull(MapServer.tokenOf("token=%zz"));
+        assertEquals(403, postHandoff("token=%zz", ORIGIN).statusCode());
+    }
+
+    @Test
     void anAdultSeesBothWorldsAndThePlayersTheyMayReach() throws Exception {
         online.add(ADULT);
         String adult = signIn(ADULT);

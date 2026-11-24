@@ -2,6 +2,13 @@
 
 Kept by this repo's owning session, per `~/Code/CLAUDE.md`, "Test self-audits". Newest first.
 
+
+## 2026-11-24: security review fixes (0.2.1, after a fix)
+
+- Promises: only an exact list of paths reaches BlueMap; encoded, dot and recased paths are refused; hidden maps and their live data stay hidden; live markers and the event stream never pass; a malformed hand-off is a 403; sign-in limits count an IPv6 /64 as one visitor.
+- Covered: `MapServerTest.routeAllowsOnlyTheExactList`, `encodedDottedOrRecasedPathsNeverReachAKidsHiddenMap` (18 variants, BlueMap never asked), `liveMarkersAreNeverPassedOn`, `aMalformedPercentInAHandOffIsRefusedNot502`; `ClientAddressTest` (IPv6 /64, IPv4 per address, untrusted forwarding). Live: 12 variants sent raw against the real BlueMap, direct (27/27) and through Caddy with the staged block (28/28); fail closed 8/8.
+- Gaps skipped: TLS, the http redirect and PROXY protocol are the proxy's, covered by Infrastructure's map-proxy-test.sh (17/17). The rate limit's per-/64 key is unit-tested; a live run with many IPv6 addresses isn't possible on 127.0.0.1.
+
 ## 2026-11-10: first audit (starter kit)
 
 - Promises: none yet.

@@ -43,8 +43,39 @@ public final class MapServer {
     static final Duration MIN_ANSWER = Duration.ofMillis(400);
     static final int MAX_JSON = 4 * 1024 * 1024;
     private static final int MAX_BODY = 256;
-    private static final Pattern MAP_PATH = Pattern.compile("/maps/([A-Za-z0-9_-]{1,64})(/.*)?");
-    private static final Pattern BAD_PATH = Pattern.compile("(?i).*(\\.\\.|%2e|%2f|%5c|%00|\\\\|//).*");
+    /** A path segment BlueMapAuth will pass on: plain letters, digits, dash, underscore and dots inside a name. */
+    private static final Pattern SEGMENT = Pattern.compile("[A-Za-z0-9_-][A-Za-z0-9_.-]{0,127}");
+    private static final Pattern ROOT_FILE = Pattern.compile("[A-Za-z0-9_-]{1,64}\\.(?:ico|png|svg|webmanifest)");
+
+    /** What a request path is, after the exact allowlist (K70 review, 2026-11-24). Anything not listed is NOT_FOUND. */
+    enum Kind { BAD, PAGE, SETTINGS, STATIC, MAP_FILE, MAP_PLAYERS, MAP_MARKERS, NOT_FOUND }
+
+    record Route(Kind kind, String map) {}
+
+    /**
+     * Routes a raw request path by an exact, case-sensitive allowlist. Refuses any percent-encoding, backslash, empty,
+     * "." or ".." segment, so nothing BlueMap would decode or normalise differently gets through. Pure, for tests.
+     */
+    static Route route(String raw) {
+        if (raw == null || !raw.startsWith("/") || raw.indexOf('%') >= 0 || raw.indexOf('\\') >= 0) return new Route(Kind.BAD, null);
+        if (raw.equals("/") || raw.equals("/index.html")) return new Route(Kind.PAGE, null);
+        String[] seg = raw.substring(1).split("/", -1);
+        for (String x : seg) if (!SEGMENT.matcher(x).matches()) return new Route(Kind.BAD, null);
+        if (seg.length == 1) {
+            if (seg[0].equals("settings.json")) return new Route(Kind.SETTINGS, null);
+            return new Route(ROOT_FILE.matcher(seg[0]).matches() ? Kind.STATIC : Kind.NOT_FOUND, null);
+        }
+        if (seg[0].equals("assets") || seg[0].equals("lang")) return new Route(Kind.STATIC, null);
+        if (seg[0].equals("maps") && seg.length >= 3 && seg[1].length() <= 64 && seg[1].indexOf('.') < 0) {
+            if (seg[2].equals("live")) {
+                if (seg.length == 4 && seg[3].equals("players.json")) return new Route(Kind.MAP_PLAYERS, seg[1]);
+                if (seg.length == 4 && seg[3].equals("markers.json")) return new Route(Kind.MAP_MARKERS, seg[1]);
+                return new Route(Kind.NOT_FOUND, null); // the live event stream and anything else live never pass
+            }
+            return new Route(Kind.MAP_FILE, seg[1]);
+        }
+        return new Route(Kind.NOT_FOUND, null);
+    }
     private static final Set<String> PASS_BACK = Set.of("content-type", "content-encoding", "etag", "last-modified");
 
     public record Settings(String bind, int port, URI publicUrl, URI blueMap, String signInUrl, List<String> trustedProxies,
@@ -97,21 +128,22 @@ public final class MapServer {
         try {
             String path = x.getRequestURI().getRawPath();
             String method = x.getRequestMethod();
-            if (path == null || !path.startsWith("/") || BAD_PATH.matcher(path).matches()) { plain(x, 400, "Bad request."); return; }
-            if (path.equals("/handoff")) {
+            if (path != null && path.equals("/handoff")) {
                 if (method.equals("GET")) page(x, 200, Pages.handoff(settings.signInUrl()));
                 else if (method.equals("POST")) handoff(x);
                 else notAllowed(x, "GET, POST");
                 return;
             }
+            Route r = route(path);
+            if (r.kind() == Kind.BAD) { plain(x, 400, "Bad request."); return; }
             if (!method.equals("GET") && !method.equals("HEAD")) { notAllowed(x, "GET, HEAD"); return; }
             Optional<Access.Viewer> v = sessions.lookup(cookie(x, COOKIE));
             if (v.isEmpty()) {
-                if (path.equals("/") || path.equals("/index.html")) page(x, 401, Pages.signIn(settings.signInUrl()));
+                if (r.kind() == Kind.PAGE) page(x, 401, Pages.signIn(settings.signInUrl()));
                 else plain(x, 401, "Sign in first.");
                 return;
             }
-            serve(x, v.get(), path);
+            serve(x, v.get(), path, r);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } catch (RuntimeException | IOException e) {
@@ -125,27 +157,29 @@ public final class MapServer {
 
     // --- signed in ---
 
-    private void serve(HttpExchange x, Access.Viewer v, String path) throws IOException, InterruptedException {
-        if (path.equals("/settings.json")) {
-            Set<String> allowed = allowedMaps(v);
-            String body = fetchJson(path);
-            String out = body == null ? null : JsonFilter.settings(body, allowed::contains);
-            if (out == null) { plain(x, 502, ""); return; }
-            json(x, out);
-            return;
-        }
-        var m = MAP_PATH.matcher(path);
-        if (path.startsWith("/maps/")) {
-            if (!m.matches() || !allowedMaps(v).contains(m.group(1))) { plain(x, 404, "Not found."); return; }
-            if ("/live/players.json".equals(m.group(2))) {
+    private void serve(HttpExchange x, Access.Viewer v, String path, Route r) throws IOException, InterruptedException {
+        switch (r.kind()) {
+            case SETTINGS -> {
+                Set<String> allowed = allowedMaps(v);
                 String body = fetchJson(path);
-                json(x, body == null ? JsonFilter.EMPTY_PLAYERS : JsonFilter.players(body, ps -> access.visible(v.uuid(), ps)));
-                return;
+                String out = body == null ? null : JsonFilter.settings(body, allowed::contains);
+                if (out == null) { plain(x, 502, ""); return; }
+                json(x, out);
             }
-            pass(x, path, m.group(2) != null && m.group(2).startsWith("/live/") ? "private, no-store" : "private, max-age=300");
-            return;
+            case MAP_PLAYERS, MAP_MARKERS, MAP_FILE -> {
+                if (!allowedMaps(v).contains(r.map())) { plain(x, 404, "Not found."); return; }
+                if (r.kind() == Kind.MAP_PLAYERS) {
+                    String body = fetchJson(path);
+                    json(x, body == null ? JsonFilter.EMPTY_PLAYERS : JsonFilter.players(body, ps -> access.visible(v.uuid(), ps)));
+                } else if (r.kind() == Kind.MAP_MARKERS) {
+                    json(x, "{}"); // markers can carry player positions that Mayor hasn't checked, so none are sent
+                } else {
+                    pass(x, path, "private, no-cache");
+                }
+            }
+            case PAGE, STATIC -> pass(x, path, "private, no-cache");
+            default -> plain(x, 404, "Not found.");
         }
-        pass(x, path, "private, no-cache");
     }
 
     private Set<String> allowedMaps(Access.Viewer v) {
@@ -189,7 +223,12 @@ public final class MapServer {
 
     static String tokenOf(String form) {
         if (!form.startsWith("token=") || form.indexOf('&') >= 0) return null;
-        String t = URLDecoder.decode(form.substring(6), StandardCharsets.US_ASCII);
+        String t;
+        try {
+            t = URLDecoder.decode(form.substring(6), StandardCharsets.US_ASCII);
+        } catch (IllegalArgumentException e) {
+            return null; // a malformed % is a bad link, answered 403, never a 502
+        }
         return t.matches("[A-Za-z0-9_-]{43}") ? t : null;
     }
 

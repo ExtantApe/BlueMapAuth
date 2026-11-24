@@ -15,16 +15,21 @@
 //   MK_TEST_WELCOMEWAGON    a WelcomeWagon jar with the map hand-off (0.4 or newer)
 //   MK_TEST_JAVA        a Java 25 to run Paper with
 //   MK_TEST_MISSING=1   run without Mayor and LuckPerms instead, to check every missing piece fails closed
+//   MK_TEST_PROXY=1     put a throwaway Caddy on 127.0.0.1 in front of the map, running the staged map site block
+//                       (MK_TEST_CADDY_DRAFT, default ~/Minecraft/_tools/caddy/map-site.caddy.draft) over plain http
 import { spawn } from 'node:child_process'
 import { createHash, randomBytes } from 'node:crypto'
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync, appendFileSync } from 'node:fs'
 import os from 'node:os'
+import http from 'node:http'
 import path from 'node:path'
 import mineflayer from 'mineflayer'
 
 const must = n => { const v = process.env[n]; if (!v) throw new Error('Set ' + n + ' (see the top of test/live/bluemapauth.mjs)'); return v }
 const JAVA = process.env.MK_TEST_JAVA ?? 'java'
 const MISSING = process.env.MK_TEST_MISSING === '1'
+const PROXY = process.env.MK_TEST_PROXY === '1'
+const DRAFT = process.env.MK_TEST_CADDY_DRAFT ?? path.join(os.homedir(), 'Minecraft/_tools/caddy/map-site.caddy.draft')
 const JARS = must('MK_TEST_JARS'), EULA = must('MK_TEST_EULA'), MAYOR = must('MK_TEST_MAYOR'), WELCOMEWAGON = must('MK_TEST_WELCOMEWAGON')
 const RUN = path.resolve(must('MK_TEST_RUN'))
 if (![os.tmpdir(), '/tmp', '/private/tmp', '/var/folders'].map(p => path.resolve(p)).some(t => RUN.startsWith(t + path.sep)))
@@ -35,7 +40,9 @@ const LIBS = path.join(ROOT, 'build/libs')
 const MK = readdirSync(LIBS).filter(f => /^BlueMapAuth-[\d.]+\.jar$/.test(f))
 if (MK.length !== 1) throw new Error('Run ./gradlew clean build first: expected one BlueMapAuth jar in build/libs')
 
-const PORT = 25618, LK_WEB = 25692, MAP_WEB = 25694, BLUEMAP = 25695
+const PORT = 25618, LK_WEB = 25692, MAP_WEB = 25694, BLUEMAP = 25695, CADDY = 25696
+// Browsers reach the map through Caddy in proxy mode, straight otherwise.
+const MAP_PORT = PROXY ? CADDY : MAP_WEB
 const PLAY = 'https://play.example.test', MAP = 'https://map.example.test'
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 const jar = re => { const f = readdirSync(JARS).find(n => re.test(n)); if (!f) throw new Error('No jar matching ' + re); return path.join(JARS, f) }
@@ -86,7 +93,9 @@ function configFrom(src, dest, pairs) {
 const fromJar = async (j, file) => (await import('node:child_process')).execFileSync('unzip', ['-p', j, file], { encoding: 'utf8' })
 writeFileSync(path.join(dir, 'lk.yml'), await fromJar(WELCOMEWAGON, 'config.yml'))
 configFrom(path.join(dir, 'lk.yml'), path.join(dir, 'plugins/WelcomeWagon/config.yml'), [
-  ['enabled: false', 'enabled: true'], ['port: 25680', 'port: ' + LK_WEB], ['public-url: ""', 'public-url: "' + PLAY + '"'],
+  // WelcomeWagon 0.6 has three switches: the landing page, invites and browser sign-in (sessions), in that order.
+  ['enabled: false', 'enabled: true'], ['enabled: false', 'enabled: true'], ['enabled: false', 'enabled: true'],
+  ['port: 25680', 'port: ' + LK_WEB], ['public-url: ""', 'public-url: "' + PLAY + '"'],
   ['map-address: ""', 'map-address: "' + MAP + '"']])
 writeFileSync(path.join(dir, 'hr.yml'), await fromJar(MAYOR, 'config.yml'))
 configFrom(path.join(dir, 'hr.yml'), path.join(dir, 'plugins/Mayor/config.yml'), [['circles: []', 'circles:\n  - family']])
@@ -160,7 +169,39 @@ class Browser {
     }
     return { status: r.status, headers: r.headers, body: await r.text() }
   }
-  async csrf(p) { const m = /name="csrf" value="([^"]+)"/.exec((await this.req(p)).body); if (!m) throw new Error('no form on ' + p); return m[1] }
+  async csrf(p) {
+    const r = await this.req(p)
+    const m = /name="csrf" value="([^"]+)"/.exec(r.body)
+    if (!m) throw new Error(`no form on ${p} (${r.status}): ${r.body.replace(/\s+/g, ' ').slice(0, 300)}`)
+    return m[1]
+  }
+}
+
+/** A GET sent exactly as written, with no URL clean-up (fetch would resolve dots and could re-encode). */
+function rawGet(port, rawPath, cookieJar) {
+  return new Promise((resolve, reject) => {
+    const headers = cookieJar?.size ? { cookie: [...cookieJar].map(([k, v]) => k + '=' + v).join('; ') } : {}
+    const req = http.request({ host: '127.0.0.1', port, path: rawPath, method: 'GET', headers }, res => {
+      let body = ''; res.setEncoding('utf8'); res.on('data', d => { body += d }); res.on('end', () => resolve({ status: res.statusCode, body }))
+    })
+    req.on('error', reject); req.end()
+  })
+}
+
+/** Proxy mode: the staged site block, its host swapped for a local http address and its upstream for this test's map. */
+let caddy = null
+async function startCaddy() {
+  const draft = readFileSync(DRAFT, 'utf8')
+  const start = draft.search(/^[^#\s][^\n]*\{\s*$/m)
+  if (start < 0) throw new Error('no site block in ' + DRAFT)
+  const end = draft.indexOf('\n}', start)
+  const body = draft.slice(draft.indexOf('{', start) + 1, end)
+  if (!/reverse_proxy 127\.0\.0\.1:8180/.test(body)) throw new Error('the draft no longer proxies 127.0.0.1:8180')
+  const conf = `{\n\tadmin off\n\tauto_https off\n\tstorage file_system ${path.join(RUN, 'caddy-data')}\n}\nhttp://127.0.0.1:${CADDY} {${body.replace('127.0.0.1:8180', '127.0.0.1:' + MAP_WEB)}\n}\n`
+  writeFileSync(path.join(RUN, 'Caddyfile'), conf)
+  caddy = spawn('caddy', ['run', '--config', path.join(RUN, 'Caddyfile'), '--adapter', 'caddyfile'], { stdio: 'ignore' })
+  for (let i = 0; i < 50; i++) { try { await rawGet(CADDY, '/'); return } catch { await sleep(200) } }
+  throw new Error('Caddy did not start')
 }
 
 /** A WelcomeWagon session file as WelcomeWagon writes it, for a cookie the test made. Like having used an invite. */
@@ -182,7 +223,7 @@ async function openMap(uuid, name) {
   const where = r.headers.get('location') ?? ''
   if (r.status !== 303 || !where.startsWith(MAP + '/handoff#')) throw new Error(name + ': Open the map gave ' + r.status + ' ' + where)
   const token = where.slice(where.indexOf('#') + 1)
-  const map = new Browser(MAP_WEB)
+  const map = new Browser(MAP_PORT)
   const h = await map.req('/handoff', { method: 'POST', body: 'token=' + token, headers: { origin: MAP, 'content-type': 'application/x-www-form-urlencoded' } })
   return { lk, map, token, status: h.status, setCookie: h.headers.get('set-cookie') ?? '' }
 }
@@ -243,6 +284,7 @@ try {
   const serving = log.filter(l => /Serving the map/.test(l)).pop() ?? ''
   check('BlueMapAuth serves the map, bound to this machine, and knows BlueMap\'s maps', /127\.0\.0\.1:25694 .* [3-9] map\(s\) known/.test(serving), serving.replace(/^.*Serving/, 'Serving'))
 
+  if (PROXY) { await startCaddy(); check('the staged map site block runs in a throwaway Caddy in front of the map', true) }
   for (const n of ['Kid', 'Mum', 'Adult', 'Guest']) send('whitelist add ' + n)
   if (MISSING) { await missingPieces(); throw 'done' }
   const perms = [[KID, 'mayor.circle.family'], [MUM, 'mayor.circle.family'],
@@ -255,7 +297,7 @@ try {
   await bot('Mum'); await bot('Adult'); await bot('Guest')
 
   // --- 1. a visitor who isn't signed in gets nothing ---
-  const stranger = new Browser(MAP_WEB)
+  const stranger = new Browser(MAP_PORT)
   const home = await stranger.req('/')
   check('a visitor who isn\'t signed in gets the sign-in page, not the map', home.status === 401 && /Sign in to see the map/.test(home.body) && !/BlueMap/.test(home.body))
   let leaked = false
@@ -270,7 +312,7 @@ try {
   check('the hand-off signs the kid\'s browser in to the map', kid.status === 204, String(kid.status))
   check('with a host-only, HttpOnly, Secure, Strict cookie', /^bluemapauth=/.test(kid.setCookie) && /HttpOnly/.test(kid.setCookie)
     && /Secure/.test(kid.setCookie) && /SameSite=Strict/.test(kid.setCookie) && !/domain=/i.test(kid.setCookie), kid.setCookie.replace(/=[^;]+/, '=…'))
-  const again = await new Browser(MAP_WEB).req('/handoff', { method: 'POST', body: 'token=' + kid.token, headers: { origin: MAP, 'content-type': 'application/x-www-form-urlencoded' } })
+  const again = await new Browser(MAP_PORT).req('/handoff', { method: 'POST', body: 'token=' + kid.token, headers: { origin: MAP, 'content-type': 'application/x-www-form-urlencoded' } })
   check('the same hand-off link doesn\'t work twice', again.status === 403, String(again.status))
 
   const adult = await openMap(ADULT, 'Adult')
@@ -288,6 +330,21 @@ try {
   }
   check('the End\'s map isn\'t there for the kid at all (404, like a map that doesn\'t exist)', endLeak.length === 0, endLeak.join(', '))
   check('while the adult gets it', (await adult.map.req(`/maps/${end}/settings.json`)).status === 200)
+
+  // K70 security review, 2026-11-24: encoded, dot and capitalised paths, the live event stream and markers, sent
+  // exactly as written. BlueMap itself would decode and normalise these, so BlueMapAuth must refuse them first.
+  const variants = [`/%6Daps/${end}/settings.json`, `/m%61ps/${end}/live/players.json`, `/maps/${over}/live/player%73.json`,
+    `/./maps/${end}/settings.json`, `/maps/./${end}/settings.json`, `/maps/${over}/../${end}/settings.json`,
+    `/Maps/${end}/settings.json`, `/MAPS/${end}/live/players.json`, `/maps//${end}/settings.json`,
+    `/maps/${over}/live/sse`, `/maps/${end}/live/sse`, `/maps/${end}/live/markers.json`]
+  const through = []
+  for (const p of variants) {
+    const r = await rawGet(MAP_PORT, p, kid.map.jar)
+    if (!(r.status === 400 || r.status === 404) || /hires|"uuid"|lowres|"players"/.test(r.body)) through.push(`${p} ${r.status}`)
+  }
+  check(`none of ${variants.length} encoded, dot, capitalised or live-stream paths reach the End's map or live data for the kid`, through.length === 0, through.join(', '))
+  const markers = await kid.map.req(`/maps/${over}/live/markers.json`)
+  check('live markers are never passed on, even for the kid\'s own map', markers.status === 200 && markers.body === '{}', markers.body.slice(0, 80))
 
   const awayKid = playersIn((await kid.map.req(`/maps/${over}/live/players.json`)).body)
   check('an away kid sees Mum, who shares their circle', awayKid?.includes(MUM), JSON.stringify(awayKid))
@@ -339,11 +396,13 @@ try {
   console.log('CRASHED  ' + (e.stack ?? e))
 } finally {
   for (const n of Object.keys(bots)) bots[n].quit()
+  if (caddy && caddy.exitCode === null) caddy.kill()
   if (proc && proc.exitCode === null) await stop().catch(() => proc.kill('SIGKILL'))
   const problems = log.filter(l => /BlueMapAuth|bluemapauth/.test(l) && /WARN|ERROR|SEVERE|Exception/.test(l))
   if (problems.length) console.log('BlueMapAuth log lines worth a look:\n  ' + problems.slice(0, 10).join('\n  '))
   writeFileSync(path.join(RUN, 'bluemapauth-server.log'), log.join('\n') + '\n')
   rmSync(dir, { recursive: true, force: true })
+  rmSync(path.join(RUN, 'Caddyfile'), { force: true }); rmSync(path.join(RUN, 'caddy-data'), { recursive: true, force: true })
 }
 const failed = results.filter(r => !r.ok).length
 console.log(`SUMMARY  ${results.length - failed}/${results.length} passed${crashed ? ', CRASHED' : ''}. Server deleted; log in ${path.join(RUN, 'bluemapauth-server.log')}`)
