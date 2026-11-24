@@ -37,16 +37,27 @@ final class JsonFilter {
         Set<UUID> listed = new HashSet<>();
         for (JsonElement e : o.getAsJsonArray("players")) {
             UUID u = uuidOf(e);
-            if (u != null) listed.add(u);
+            if (u != null && !foreign(e)) listed.add(u);
         }
         Set<UUID> ok = listed.isEmpty() ? Set.of() : visible.apply(Set.copyOf(listed));
         JsonArray kept = new JsonArray();
         for (JsonElement e : o.getAsJsonArray("players")) {
             UUID u = uuidOf(e);
-            if (u != null && ok.contains(u)) kept.add(e);
+            if (u != null && !foreign(e) && ok.contains(u)) kept.add(e);
         }
         o.add("players", kept);
         return o.toString();
+    }
+
+    /**
+     * A player BlueMap lists as "foreign" is in another world, and their position isn't on this map. With BlueMap's
+     * hide-different-world off, that world may be one the viewer can't enter, such as a kids' world, so they're never
+     * sent (K70 review M1, 2026-11-24). A flag that isn't a plain false counts as foreign.
+     */
+    private static boolean foreign(JsonElement e) {
+        JsonElement f = e.getAsJsonObject().get("foreign");
+        if (f == null) return false;
+        return !(f.isJsonPrimitive() && f.getAsJsonPrimitive().isBoolean() && !f.getAsBoolean());
     }
 
     static final String EMPTY_PLAYERS = "{\"players\":[]}";

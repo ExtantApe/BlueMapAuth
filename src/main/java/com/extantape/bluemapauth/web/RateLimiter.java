@@ -8,8 +8,9 @@ import java.util.Map;
 import java.util.function.LongSupplier;
 
 /**
- * Two limits on tries: per visitor over 10 minutes, and for everyone together over a minute. A try counts whether or
- * not it works, so a guesser can't learn anything by watching which ones are counted.
+ * Two limits on tries: per visitor over 10 minutes, counting every try so a guesser learns nothing from which ones
+ * count, and for everyone together over a minute, counting only failed tries. Real sign-ins never use up the
+ * site-wide budget, so a few addresses sending good links can't lock everyone else out (K70 review L2, 2026-11-24).
  */
 public final class RateLimiter {
     private static final long VISITOR_WINDOW = 10 * 60_000L;
@@ -37,9 +38,15 @@ public final class RateLimiter {
         if (mine.size() >= perVisitor) return seconds(mine.peekFirst() + VISITOR_WINDOW - now);
         if (site.size() >= siteWide) return seconds(site.peekFirst() + SITE_WINDOW - now);
         mine.addLast(now);
-        site.addLast(now);
         if (visitors.size() > MAX_VISITORS_TRACKED) forgetIdle(now);
         return 0;
+    }
+
+    /** A try that didn't work: counts toward the site-wide limit. */
+    public synchronized void failed() {
+        long now = clock.getAsLong();
+        trim(site, now - SITE_WINDOW);
+        site.addLast(now);
     }
 
     private void forgetIdle(long now) {

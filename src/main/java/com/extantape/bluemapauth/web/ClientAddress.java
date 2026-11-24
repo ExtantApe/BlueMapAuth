@@ -10,7 +10,21 @@ import java.util.List;
 public final class ClientAddress {
     private final List<String> trusted;
 
-    public ClientAddress(List<String> trustedProxies) { this.trusted = List.copyOf(trustedProxies); }
+    /** Rules that aren't an address or address/prefix are refused here, at load, never per request (K70 review I1). */
+    public ClientAddress(List<String> trustedProxies) {
+        for (String t : trustedProxies) if (!valid(t)) throw new IllegalArgumentException("not an IP address or prefix: " + t);
+        this.trusted = List.copyOf(trustedProxies);
+    }
+
+    static boolean valid(String rule) {
+        int slash = rule.indexOf('/');
+        InetAddress base = literal(slash < 0 ? rule : rule.substring(0, slash));
+        if (base == null) return false;
+        if (slash < 0) return true;
+        String bits = rule.substring(slash + 1);
+        if (!bits.matches("\\d{1,3}")) return false;
+        return Integer.parseInt(bits) <= base.getAddress().length * 8;
+    }
 
     /**
      * The rate-limit key for a visitor. An IPv6 visitor usually holds a whole /64, so the key is the /64; otherwise a
