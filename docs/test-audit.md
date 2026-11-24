@@ -3,6 +3,13 @@
 Kept by this repo's owning session, per `~/Code/CLAUDE.md`, "Test self-audits". Newest first.
 
 
+
+## 2026-11-24: second security review follow-ups (0.2.2)
+
+- Promises: players BlueMap marks foreign are never sent; head pictures only for visible players; any case of "live" is live; real sign-ins don't use up the site-wide limit; bad proxy entries fail at load.
+- Covered: `MapServerTest.aPlayerInAnotherWorldIsNeverSentEvenIfReachable`, `anyCaseOfLiveIsTreatedAsLive`, `aPlayerHeadIsOnlyThereForPlayersTheViewerMaySee`; `RateLimiterTest` (3); `ClientAddressTest.aBadTrustedProxyRuleIsRefusedAtLoadNotPerRequest`. Live: mixed-case live and an unseen player's head added to the raw variants.
+- Gaps skipped: a live run with hide-different-world off and a player in a world the viewer can't enter. The bot rig has one server's worlds and the unit test feeds BlueMap's exact foreign flag, so the unit test is the stronger check. Infrastructure's fuzz rig covers the raw-request side.
+
 ## 2026-11-24: security review fixes (0.2.1, after a fix)
 
 - Promises: only an exact list of paths reaches BlueMap; encoded, dot and recased paths are refused; hidden maps and their live data stay hidden; live markers and the event stream never pass; a malformed hand-off is a 403; sign-in limits count an IPv6 /64 as one visitor.

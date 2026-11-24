@@ -29,6 +29,8 @@ import java.util.concurrent.Executors;
 import java.util.function.LongSupplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.UUID;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
 
@@ -48,9 +50,13 @@ public final class MapServer {
     private static final Pattern ROOT_FILE = Pattern.compile("[A-Za-z0-9_-]{1,64}\\.(?:ico|png|svg|webmanifest)");
 
     /** What a request path is, after the exact allowlist (K70 review, 2026-11-24). Anything not listed is NOT_FOUND. */
-    enum Kind { BAD, PAGE, SETTINGS, STATIC, MAP_FILE, MAP_PLAYERS, MAP_MARKERS, NOT_FOUND }
+    enum Kind { BAD, PAGE, SETTINGS, STATIC, MAP_FILE, MAP_PLAYERS, MAP_MARKERS, MAP_HEAD, NOT_FOUND }
 
-    record Route(Kind kind, String map) {}
+    record Route(Kind kind, String map, UUID player) {
+        Route(Kind kind, String map) { this(kind, map, null); }
+    }
+
+    private static final Pattern HEAD = Pattern.compile("([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\\.png");
 
     /**
      * Routes a raw request path by an exact, case-sensitive allowlist. Refuses any percent-encoding, backslash, empty,
@@ -67,10 +73,17 @@ public final class MapServer {
         }
         if (seg[0].equals("assets") || seg[0].equals("lang")) return new Route(Kind.STATIC, null);
         if (seg[0].equals("maps") && seg.length >= 3 && seg[1].length() <= 64 && seg[1].indexOf('.') < 0) {
-            if (seg[2].equals("live")) {
+            // Any capitalisation of "live" is treated as live, in case a later BlueMap matches it loosely (K70 L1).
+            if (seg[2].equalsIgnoreCase("live")) {
+                if (!seg[2].equals("live")) return new Route(Kind.NOT_FOUND, null);
                 if (seg.length == 4 && seg[3].equals("players.json")) return new Route(Kind.MAP_PLAYERS, seg[1]);
                 if (seg.length == 4 && seg[3].equals("markers.json")) return new Route(Kind.MAP_MARKERS, seg[1]);
                 return new Route(Kind.NOT_FOUND, null); // the live event stream and anything else live never pass
+            }
+            // A player's head picture says they've joined and shows their skin: only for players the viewer may see (K70 L3).
+            if (seg[2].equalsIgnoreCase("assets") && seg.length >= 4 && seg[3].equalsIgnoreCase("playerheads")) {
+                Matcher m = seg.length == 5 && seg[2].equals("assets") && seg[3].equals("playerheads") ? HEAD.matcher(seg[4]) : null;
+                return m != null && m.matches() ? new Route(Kind.MAP_HEAD, seg[1], UUID.fromString(m.group(1))) : new Route(Kind.NOT_FOUND, null);
             }
             return new Route(Kind.MAP_FILE, seg[1]);
         }
@@ -166,13 +179,16 @@ public final class MapServer {
                 if (out == null) { plain(x, 502, ""); return; }
                 json(x, out);
             }
-            case MAP_PLAYERS, MAP_MARKERS, MAP_FILE -> {
+            case MAP_PLAYERS, MAP_MARKERS, MAP_FILE, MAP_HEAD -> {
                 if (!allowedMaps(v).contains(r.map())) { plain(x, 404, "Not found."); return; }
                 if (r.kind() == Kind.MAP_PLAYERS) {
                     String body = fetchJson(path);
                     json(x, body == null ? JsonFilter.EMPTY_PLAYERS : JsonFilter.players(body, ps -> access.visible(v.uuid(), ps)));
                 } else if (r.kind() == Kind.MAP_MARKERS) {
                     json(x, "{}"); // markers can carry player positions that Mayor hasn't checked, so none are sent
+                } else if (r.kind() == Kind.MAP_HEAD) {
+                    if (!access.visible(v.uuid(), Set.of(r.player())).contains(r.player())) { plain(x, 404, "Not found."); return; }
+                    pass(x, path, "private, no-cache");
                 } else {
                     pass(x, path, "private, no-cache");
                 }
@@ -210,6 +226,7 @@ public final class MapServer {
         String token = body.length > MAX_BODY ? null : tokenOf(new String(body, StandardCharsets.US_ASCII));
         Optional<Access.Viewer> v = token == null ? Optional.empty() : access.redeem(token);
         if (v.isEmpty()) {
+            limiter.failed();
             waitOut(started);
             plain(x, 403, "That link didn't work.");
             return;

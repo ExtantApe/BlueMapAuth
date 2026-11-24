@@ -7,6 +7,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /** Rate-limit keys (K70 review, 2026-11-24): IPv6 by its /64, IPv4 per address, forwarded only from a trusted proxy. */
 class ClientAddressTest {
@@ -31,5 +32,13 @@ class ClientAddressTest {
     @Test
     void aForwardedAddressFromAnUntrustedSenderIsIgnored() {
         assertEquals("198.51.100.9", clients.of(InetAddress.ofLiteral("198.51.100.9"), "203.0.113.7"));
+    }
+
+    @Test
+    void aBadTrustedProxyRuleIsRefusedAtLoadNotPerRequest() {
+        // K70 review I1: a bad prefix used to throw on every request, giving a 502.
+        for (String bad : List.of("127.0.0.1/abc", "127.0.0.1/33", "::1/129", "localhost", "10.0.0.0/"))
+            assertThrows(IllegalArgumentException.class, () -> new ClientAddress(List.of(bad)), bad);
+        new ClientAddress(List.of("10.0.0.0/8", "::1", "fd00::/8"));
     }
 }

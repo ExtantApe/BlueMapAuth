@@ -208,6 +208,41 @@ class MapServerTest {
     }
 
     @Test
+    void aPlayerInAnotherWorldIsNeverSentEvenIfReachable() throws Exception {
+        // K70 review M1: with BlueMap's hide-different-world off, players elsewhere come back marked foreign.
+        String kid = signIn(KID);
+        playersJson = "{\"players\":[" + player(KID) + "," + player(MUM).replace("\"foreign\":false", "\"foreign\":true") + "]}";
+        var r = get("/maps/family_map/live/players.json", kid).body();
+        assertTrue(r.contains(KID.toString()), r);
+        assertFalse(r.contains(MUM.toString()), "Mum is in the circle but in another world, maybe one the kid can't enter");
+        playersJson = "{\"players\":[" + player(MUM).replace("\"foreign\":false", "\"foreign\":\"yes\"") + "]}";
+        assertFalse(get("/maps/family_map/live/players.json", kid).body().contains(MUM.toString()), "an odd flag counts as foreign");
+    }
+
+    @Test
+    void anyCaseOfLiveIsTreatedAsLive() throws Exception {
+        String kid = signIn(KID);
+        int before = upstreamSaw.size();
+        for (String p : List.of("/maps/family_map/Live/players.json", "/maps/family_map/LIVE/sse", "/maps/family_map/lIvE/markers.json"))
+            assertEquals(404, get(p, kid).statusCode(), p);
+        assertEquals(before, upstreamSaw.size(), "BlueMap is never asked");
+    }
+
+    @Test
+    void aPlayerHeadIsOnlyThereForPlayersTheViewerMaySee() throws Exception {
+        // K70 review L3: a head picture says the player has joined, and shows their skin.
+        String kid = signIn(KID);
+        int before = upstreamSaw.size();
+        assertEquals(404, get("/maps/family_map/assets/playerheads/" + ADULT + ".png", kid).statusCode());
+        assertEquals(404, get("/maps/family_map/assets/playerheads/" + STRANGER + ".png", kid).statusCode());
+        assertEquals(404, get("/maps/family_map/assets/playerheads/alex.png", kid).statusCode());
+        assertEquals(404, get("/maps/family_map/assets/PlayerHeads/" + ADULT + ".png", kid).statusCode());
+        assertEquals(before, upstreamSaw.size(), "BlueMap is never asked about players the kid can't see");
+        get("/maps/family_map/assets/playerheads/" + MUM + ".png", kid);
+        assertEquals(before + 1, upstreamSaw.size(), "Mum, in the kid's circle, is passed on");
+    }
+
+    @Test
     void handOffTriesAreRateLimited() throws Exception {
         int refused = 0;
         for (int i = 0; i < 25; i++) if (postHandoff("token=" + "B".repeat(43), ORIGIN).statusCode() == 429) refused++;

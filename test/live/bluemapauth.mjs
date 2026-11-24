@@ -336,7 +336,8 @@ try {
   const variants = [`/%6Daps/${end}/settings.json`, `/m%61ps/${end}/live/players.json`, `/maps/${over}/live/player%73.json`,
     `/./maps/${end}/settings.json`, `/maps/./${end}/settings.json`, `/maps/${over}/../${end}/settings.json`,
     `/Maps/${end}/settings.json`, `/MAPS/${end}/live/players.json`, `/maps//${end}/settings.json`,
-    `/maps/${over}/live/sse`, `/maps/${end}/live/sse`, `/maps/${end}/live/markers.json`]
+    `/maps/${over}/live/sse`, `/maps/${end}/live/sse`, `/maps/${end}/live/markers.json`,
+    `/maps/${over}/Live/players.json`, `/maps/${over}/LIVE/sse`, `/maps/${over}/assets/playerheads/${ADULT}.png`]
   const through = []
   for (const p of variants) {
     const r = await rawGet(MAP_PORT, p, kid.map.jar)
