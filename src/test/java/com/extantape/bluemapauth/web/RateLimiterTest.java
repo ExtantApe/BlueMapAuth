@@ -21,10 +21,11 @@ class RateLimiterTest {
     @Test
     void failedTriesFillTheSiteWideBudget() {
         RateLimiter l = new RateLimiter(20, 5, now::get);
-        for (int i = 0; i < 5; i++) { assertEquals(0, l.tryAcquire("10.0.0." + i)); l.failed(); }
-        assertTrue(l.tryAcquire("203.0.113.9") > 0, "after 5 failures in a minute, everyone waits");
+        for (int i = 0; i < 5; i++) { assertEquals(0, l.tryAcquire("10.0.0." + i)); assertEquals(0, l.failed()); }
+        assertEquals(0, l.tryAcquire("203.0.113.9"), "a real player's try still goes ahead");
+        assertTrue(l.failed() > 0, "but another failure in that minute is told to wait");
         now.addAndGet(61_000);
-        assertEquals(0, l.tryAcquire("203.0.113.9"), "and a minute later it clears");
+        assertEquals(0, l.failed(), "and a minute later it clears");
     }
 
     @Test

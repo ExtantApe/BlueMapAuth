@@ -4,6 +4,13 @@ Kept by this repo's owning session, per `~/Code/CLAUDE.md`, "Test self-audits". 
 
 
 
+
+## 2026-11-24: 0.2.2 check leftovers (0.2.3)
+
+- Promises: a missing foreign flag counts as foreign; a working link signs in even when the site-wide limit is full.
+- Covered: `MapServerTest.aPlayerEntryWithNoForeignFlagIsLeftOut`, `aWorkingLinkStillSignsInWhenJunkTriesHaveFilledTheSiteWideLimit`; `RateLimiterTest.failedTriesFillTheSiteWideBudget` rewritten for the new rule.
+- Gaps skipped: the proxy and fail-closed bot runs weren't rerun; neither touches the hand-off limit or the foreign flag, and 0.2.2 passed both.
+
 ## 2026-11-24: second security review follow-ups (0.2.2)
 
 - Promises: players BlueMap marks foreign are never sent; head pictures only for visible players; any case of "live" is live; real sign-ins don't use up the site-wide limit; bad proxy entries fail at load.
