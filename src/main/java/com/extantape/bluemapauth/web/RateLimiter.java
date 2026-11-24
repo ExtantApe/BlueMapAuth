@@ -29,24 +29,30 @@ public final class RateLimiter {
         this.clock = clockMillis;
     }
 
-    /** Zero if the try may go ahead (and counts it), otherwise how many seconds until it may. */
+    /** Zero if this visitor's try may go ahead (and counts it), otherwise how many seconds until it may. */
     public synchronized long tryAcquire(String visitor) {
         long now = clock.getAsLong();
         trim(site, now - SITE_WINDOW);
         Deque<Long> mine = visitors.computeIfAbsent(visitor, k -> new ArrayDeque<>());
         trim(mine, now - VISITOR_WINDOW);
         if (mine.size() >= perVisitor) return seconds(mine.peekFirst() + VISITOR_WINDOW - now);
-        if (site.size() >= siteWide) return seconds(site.peekFirst() + SITE_WINDOW - now);
         mine.addLast(now);
         if (visitors.size() > MAX_VISITORS_TRACKED) forgetIdle(now);
         return 0;
     }
 
-    /** A try that didn't work: counts toward the site-wide limit. */
-    public synchronized void failed() {
+    /**
+     * A try that didn't work: counts toward the site-wide limit, and says how many seconds everyone's failed tries
+     * must wait, or zero. A link that works is never refused by the site-wide limit, so junk tries from a few
+     * addresses can't lock real players out (K70 review L2, 2026-11-24). The links' 256 random bits are what stop
+     * guessing; this only slows the feedback to a flood.
+     */
+    public synchronized long failed() {
         long now = clock.getAsLong();
         trim(site, now - SITE_WINDOW);
+        if (site.size() >= siteWide) return seconds(site.peekFirst() + SITE_WINDOW - now);
         site.addLast(now);
+        return 0;
     }
 
     private void forgetIdle(long now) {

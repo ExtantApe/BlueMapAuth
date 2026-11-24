@@ -226,8 +226,13 @@ public final class MapServer {
         String token = body.length > MAX_BODY ? null : tokenOf(new String(body, StandardCharsets.US_ASCII));
         Optional<Access.Viewer> v = token == null ? Optional.empty() : access.redeem(token);
         if (v.isEmpty()) {
-            limiter.failed();
+            long siteWait = limiter.failed();
             waitOut(started);
+            if (siteWait > 0) {
+                x.getResponseHeaders().set("Retry-After", Long.toString(siteWait));
+                plain(x, 429, "Too many tries.");
+                return;
+            }
             plain(x, 403, "That link didn't work.");
             return;
         }

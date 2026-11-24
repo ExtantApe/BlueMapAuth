@@ -52,12 +52,11 @@ final class JsonFilter {
     /**
      * A player BlueMap lists as "foreign" is in another world, and their position isn't on this map. With BlueMap's
      * hide-different-world off, that world may be one the viewer can't enter, such as a kids' world, so they're never
-     * sent (K70 review M1, 2026-11-24). A flag that isn't a plain false counts as foreign.
+     * sent (K70 review M1, 2026-11-24). A missing flag, or one that isn't a plain false, counts as foreign, so it fails closed.
      */
     private static boolean foreign(JsonElement e) {
         JsonElement f = e.getAsJsonObject().get("foreign");
-        if (f == null) return false;
-        return !(f.isJsonPrimitive() && f.getAsJsonPrimitive().isBoolean() && !f.getAsBoolean());
+        return !(f != null && f.isJsonPrimitive() && f.getAsJsonPrimitive().isBoolean() && !f.getAsBoolean());
     }
 
     static final String EMPTY_PLAYERS = "{\"players\":[]}";

@@ -220,6 +220,28 @@ class MapServerTest {
     }
 
     @Test
+    void aPlayerEntryWithNoForeignFlagIsLeftOut() throws Exception {
+        String kid = signIn(KID);
+        playersJson = "{\"players\":[" + player(KID) + "," + player(MUM).replace(",\"foreign\":false", "") + "]}";
+        var r = get("/maps/family_map/live/players.json", kid).body();
+        assertTrue(r.contains(KID.toString()) && !r.contains(MUM.toString()), r);
+    }
+
+    @Test
+    void aWorkingLinkStillSignsInWhenJunkTriesHaveFilledTheSiteWideLimit() throws Exception {
+        // K70 review L2: 60 junk tries in a minute used to lock real players out too.
+        int refused = 0;
+        for (int i = 0; i < 70; i++) {
+            var r = http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + server.port() + "/handoff")).header("Origin", ORIGIN)
+                    .header("Content-Type", "application/x-www-form-urlencoded").header("X-Forwarded-For", "198.51.100." + (i / 15))
+                    .POST(HttpRequest.BodyPublishers.ofString("token=" + "J".repeat(43))).build(), HttpResponse.BodyHandlers.ofString());
+            if (r.statusCode() == 429) refused++;
+        }
+        assertTrue(refused > 0, "junk is slowed once the site-wide limit is full");
+        signIn(MUM); // throws unless the hand-off answers 204
+    }
+
+    @Test
     void anyCaseOfLiveIsTreatedAsLive() throws Exception {
         String kid = signIn(KID);
         int before = upstreamSaw.size();
