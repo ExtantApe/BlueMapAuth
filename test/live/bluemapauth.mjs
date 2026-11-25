@@ -11,7 +11,7 @@
 //   MK_TEST_JARS        folder with paper-26.1.2.jar, LuckPerms-Bukkit-*.jar, bluemap-*-paper.jar
 //   MK_TEST_EULA        an eula.txt the owner already accepted. It's copied, never written.
 //   MK_TEST_RUN         where the server is built. Must be under a temp folder.
-//   MK_TEST_POSSE  a Posse jar with sharesCircle (Posse 0.11.0 or newer; Mayor is no longer recognized)
+//   MK_TEST_POSSE  a Posse jar with sharesCircle (Posse 0.11.0 or newer)
 //   MK_TEST_VERSION     26.1.2 (default), 26.2 or 26.3: which paper-<version>.jar in MK_TEST_JARS to run
 //   (26.2 and 26.3 also need ViaVersion-*.jar and ViaBackwards-*.jar in MK_TEST_JARS; the bots join as 1.21.11)
 //   MK_TEST_PORT        the game port (default 25618)
