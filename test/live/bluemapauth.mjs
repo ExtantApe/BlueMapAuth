@@ -1,4 +1,4 @@
-// BlueMapAuth's bot test on a throwaway Paper 26.1.2 server with the real BlueMap, LuckPerms, Mayor and WelcomeWagon,
+// BlueMapAuth's bot test on a throwaway Paper 26.1.2 server with the real BlueMap, LuckPerms, Posse and WelcomeWagon,
 // driven from the console, over HTTP and with mineflayer bots. Built in a temp folder on 127.0.0.1, never a copy of a
 // real server, and deleted at the end, pass or fail.
 //
@@ -11,10 +11,15 @@
 //   MK_TEST_JARS        folder with paper-26.1.2.jar, LuckPerms-Bukkit-*.jar, bluemap-*-paper.jar
 //   MK_TEST_EULA        an eula.txt the owner already accepted. It's copied, never written.
 //   MK_TEST_RUN         where the server is built. Must be under a temp folder.
-//   MK_TEST_MAYOR  a Mayor jar with sharesCircle (0.4 or newer, or its offline-circle branch)
+//   MK_TEST_POSSE  a Posse jar with sharesCircle (Posse 0.11.0 or newer; Mayor is no longer recognized)
+//   MK_TEST_VERSION     26.1.2 (default), 26.2 or 26.3: which paper-<version>.jar in MK_TEST_JARS to run
+//   (26.2 and 26.3 also need ViaVersion-*.jar and ViaBackwards-*.jar in MK_TEST_JARS; the bots join as 1.21.11)
+//   MK_TEST_PORT        the game port (default 25618)
+//   MK_TEST_OLD_MAYOR   with MK_TEST_MISSING=1, also install this old Mayor jar, to prove it is ignored and the viewer
+//                       still sees only themselves
 //   MK_TEST_WELCOMEWAGON    a WelcomeWagon jar with the map hand-off (0.4 or newer)
 //   MK_TEST_JAVA        a Java 25 to run Paper with
-//   MK_TEST_MISSING=1   run without Mayor and LuckPerms instead, to check every missing piece fails closed
+//   MK_TEST_MISSING=1   run without Posse and LuckPerms instead, to check every missing piece fails closed
 //   MK_TEST_PROXY=1     put a throwaway Caddy on 127.0.0.1 in front of the map, running the staged map site block
 //                       (MK_TEST_CADDY_DRAFT, default ~/Minecraft/_tools/caddy/map-site.caddy.draft) over plain http
 import { spawn } from 'node:child_process'
@@ -30,7 +35,7 @@ const JAVA = process.env.MK_TEST_JAVA ?? 'java'
 const MISSING = process.env.MK_TEST_MISSING === '1'
 const PROXY = process.env.MK_TEST_PROXY === '1'
 const DRAFT = process.env.MK_TEST_CADDY_DRAFT ?? path.join(os.homedir(), 'Minecraft/_tools/caddy/map-site.caddy.draft')
-const JARS = must('MK_TEST_JARS'), EULA = must('MK_TEST_EULA'), MAYOR = must('MK_TEST_MAYOR'), WELCOMEWAGON = must('MK_TEST_WELCOMEWAGON')
+const JARS = must('MK_TEST_JARS'), EULA = must('MK_TEST_EULA'), POSSE = must('MK_TEST_POSSE'), WELCOMEWAGON = must('MK_TEST_WELCOMEWAGON')
 const RUN = path.resolve(must('MK_TEST_RUN'))
 if (![os.tmpdir(), '/tmp', '/private/tmp', '/var/folders'].map(p => path.resolve(p)).some(t => RUN.startsWith(t + path.sep)))
   throw new Error('MK_TEST_RUN must be inside a temp folder, not ' + RUN)
@@ -40,7 +45,9 @@ const LIBS = path.join(ROOT, 'build/libs')
 const MK = readdirSync(LIBS).filter(f => /^BlueMapAuth-[\d.]+\.jar$/.test(f))
 if (MK.length !== 1) throw new Error('Run ./gradlew clean build first: expected one BlueMapAuth jar in build/libs')
 
-const PORT = 25618, LK_WEB = 25692, MAP_WEB = 25694, BLUEMAP = 25695, CADDY = 25696
+const VERSION = process.env.MK_TEST_VERSION ?? '26.1.2'
+const OLD_MAYOR = process.env.MK_TEST_OLD_MAYOR
+const PORT = Number(process.env.MK_TEST_PORT ?? 25618), LK_WEB = 25692, MAP_WEB = 25694, BLUEMAP = 25695, CADDY = 25696
 // Browsers reach the map through Caddy in proxy mode, straight otherwise.
 const MAP_PORT = PROXY ? CADDY : MAP_WEB
 const PLAY = 'https://play.example.test', MAP = 'https://map.example.test'
@@ -65,14 +72,17 @@ const KID = offlineUuid('Kid'), MUM = offlineUuid('Mum'), ADULT = offlineUuid('A
 
 // --- the server ---
 
-const dir = path.join(RUN, 'bluemapauth-26.1.2')
+const dir = path.join(RUN, 'bluemapauth-' + VERSION)
 rmSync(dir, { recursive: true, force: true })
-for (const p of ['WelcomeWagon', 'LuckPerms', 'Mayor', 'BlueMapAuth']) mkdirSync(path.join(dir, 'plugins', p), { recursive: true })
-copyFileSync(jar(/^paper-26\.1\.2\.jar$/), path.join(dir, 'paper.jar'))
+for (const p of ['WelcomeWagon', 'LuckPerms', 'Posse', 'BlueMapAuth', ...(MISSING && OLD_MAYOR ? ['Mayor'] : [])]) mkdirSync(path.join(dir, 'plugins', p), { recursive: true })
+copyFileSync(jar(new RegExp('^paper-' + VERSION.replaceAll('.', '\\.') + '\\.jar$')), path.join(dir, 'paper.jar'))
+// mineflayer speaks 26.1 and 1.21.11 only, so 26.2 and 26.3 get ViaVersion and ViaBackwards and a 1.21.11 bot.
+if (VERSION !== '26.1.2') for (const re of [/^ViaVersion-.*\.jar$/, /^ViaBackwards-.*\.jar$/]) copyFileSync(jar(re), path.join(dir, 'plugins', jar(re).split('/').pop()))
 copyFileSync(EULA, path.join(dir, 'eula.txt'))
 if (!MISSING) copyFileSync(jar(/^LuckPerms-Bukkit-.*\.jar$/), path.join(dir, 'plugins/LuckPerms.jar'))
 copyFileSync(jar(/^bluemap-.*-paper\.jar$/), path.join(dir, 'plugins/BlueMap.jar'))
-if (!MISSING) copyFileSync(MAYOR, path.join(dir, 'plugins/Mayor.jar'))
+if (!MISSING) copyFileSync(POSSE, path.join(dir, 'plugins/Posse.jar'))
+if (MISSING && OLD_MAYOR) copyFileSync(OLD_MAYOR, path.join(dir, 'plugins/Mayor.jar'))
 copyFileSync(WELCOMEWAGON, path.join(dir, 'plugins/WelcomeWagon.jar'))
 copyFileSync(path.join(LIBS, MK[0]), path.join(dir, 'plugins/BlueMapAuth.jar'))
 writeFileSync(path.join(dir, 'plugins/LuckPerms/config.yml'), 'server: global\nstorage-method: yaml\nwatch-files: false\n')
@@ -97,8 +107,8 @@ configFrom(path.join(dir, 'lk.yml'), path.join(dir, 'plugins/WelcomeWagon/config
   ['enabled: false', 'enabled: true'], ['enabled: false', 'enabled: true'], ['enabled: false', 'enabled: true'],
   ['port: 25680', 'port: ' + LK_WEB], ['public-url: ""', 'public-url: "' + PLAY + '"'],
   ['map-address: ""', 'map-address: "' + MAP + '"']])
-writeFileSync(path.join(dir, 'hr.yml'), await fromJar(MAYOR, 'config.yml'))
-configFrom(path.join(dir, 'hr.yml'), path.join(dir, 'plugins/Mayor/config.yml'), [['circles: []', 'circles:\n  - family']])
+writeFileSync(path.join(dir, 'hr.yml'), await fromJar(POSSE, 'config.yml'))
+configFrom(path.join(dir, 'hr.yml'), path.join(dir, 'plugins/Posse/config.yml'), [['circles: []', 'circles:\n  - family']])
 configFrom(path.join(ROOT, 'src/main/resources/config.yml'), path.join(dir, 'plugins/BlueMapAuth/config.yml'), [
   ['enabled: false', 'enabled: true'], ['port: 8180', 'port: ' + MAP_WEB], ['public-url: ""', 'public-url: "' + MAP + '"'],
   ['bluemap-url: "http://127.0.0.1:8100"', 'bluemap-url: "http://127.0.0.1:' + BLUEMAP + '"'],
@@ -139,9 +149,13 @@ async function stop() {
 
 const bots = {}
 async function bot(username) {
-  const b = mineflayer.createBot({ host: '127.0.0.1', port: PORT, username, version: '26.1', auth: 'offline', viewDistance: 'tiny',
+  const b = mineflayer.createBot({ host: '127.0.0.1', port: PORT, username, version: VERSION === '26.1.2' ? '26.1' : '1.21.11', auth: 'offline', viewDistance: 'tiny',
     hideErrors: true, physicsEnabled: false })
   b.on('error', () => {})
+  if (VERSION !== '26.1.2') { // through ViaBackwards, position replies can get the bot kicked, so they're dropped
+    const c = b._client, write = c.write.bind(c)
+    c.write = (n, params) => { if (!['position', 'position_look', 'look', 'flying'].includes(n)) write(n, params) }
+  }
   await new Promise((resolve, reject) => {
     b.once('spawn', resolve)
     b.once('kicked', r => reject(new Error(username + ' kicked: ' + (typeof r === 'string' ? r : JSON.stringify(r)))))
@@ -232,16 +246,16 @@ const mapsIn = s => { try { return JSON.parse(s).maps ?? [] } catch { return nul
 const playersIn = s => { try { return (JSON.parse(s).players ?? []).map(p => p.uuid) } catch { return null } }
 
 /**
- * Without Mayor and LuckPerms (MK_TEST_MISSING=1). Every missing piece answers "no": an away viewer gets no maps
+ * Without Posse and LuckPerms (MK_TEST_MISSING=1). Every missing piece answers "no": an away viewer gets no maps
  * (no LuckPerms to read their permissions) and nobody on the map, and an in-game viewer sees only themselves (no
- * Mayor). Adult is an operator here, so has every world's permission while in game.
+ * Posse). Adult is an operator here, so has every world's permission while in game.
  */
 async function missingPieces() {
   send('op Adult')
   await sleep(1000)
   await bot('Mum'); await bot('Adult'); await bot('Guest')
   const kid = await openMap(KID, 'Kid')
-  check('without LuckPerms or Mayor, the hand-off still works', kid.status === 204, String(kid.status))
+  check('without LuckPerms or Posse, the hand-off still works', kid.status === 204, String(kid.status))
   const kidMaps = mapsIn((await kid.map.req('/settings.json')).body)
   check('an away kid gets no maps: there\'s no LuckPerms to read their permissions', Array.isArray(kidMaps) && kidMaps.length === 0, JSON.stringify(kidMaps))
   check('and no players either', (await kid.map.req('/maps/world/live/players.json')).status === 404)
@@ -249,13 +263,13 @@ async function missingPieces() {
   const adultMaps = mapsIn((await adult.map.req('/settings.json')).body)
   check('an operator in game gets the maps they may enter', adultMaps?.length === 3, JSON.stringify(adultMaps))
   const seen = playersIn((await adult.map.req('/maps/world/live/players.json')).body)
-  check('but sees only themselves: no Mayor to say who they may reach', seen?.length === 1 && seen[0] === ADULT, JSON.stringify(seen))
+  check('but sees only themselves: no Posse to say who they may reach' + (OLD_MAYOR ? ', and an old Mayor jar on the server is ignored' : ''), seen?.length === 1 && seen[0] === ADULT, JSON.stringify(seen))
   const status = log.length
   send('bluemapauth status')
   await sleep(800)
   const said = log.slice(status).join('\n')
   check('/bluemapauth status names what\'s missing and what that means', /LuckPerms: missing, so someone who isn't in game sees no maps/.test(said)
-    && /Mayor: missing, so the map shows nobody but the viewer themselves/.test(said))
+    && /Posse: missing, so the map shows nobody but the viewer themselves/.test(said))
 }
 
 // --- the run ---
@@ -287,7 +301,7 @@ try {
   if (PROXY) { await startCaddy(); check('the staged map site block runs in a throwaway Caddy in front of the map', true) }
   for (const n of ['Kid', 'Mum', 'Adult', 'Guest']) send('whitelist add ' + n)
   if (MISSING) { await missingPieces(); throw 'done' }
-  const perms = [[KID, 'mayor.circle.family'], [MUM, 'mayor.circle.family'],
+  const perms = [[KID, 'posse.circle.family'], [MUM, 'posse.circle.family'],
     [KID, 'mktest.world.world'], [MUM, 'mktest.world.world'], [GUEST, 'mktest.world.world'],
     [ADULT, 'mktest.world.world'], [ADULT, 'mktest.world.world_the_end']]
   for (const [u, node] of perms) { send(`lp user ${u} permission set ${node} true`); await sleep(250) }
@@ -362,7 +376,7 @@ try {
   check('back out of the game, only the circle again', awayAgain?.includes(MUM) && !awayAgain?.includes(ADULT) && !awayAgain?.includes(GUEST), JSON.stringify(awayAgain))
 
   // --- 4. losing the circle, or the world, reaches the map ---
-  send(`lp user ${KID} permission unset mayor.circle.family`)
+  send(`lp user ${KID} permission unset posse.circle.family`)
   await sleep(31000) // LuckPerms answers for an away player are kept for 30 seconds
   const noCircle = playersIn((await kid.map.req(`/maps/${over}/live/players.json`)).body)
   check('out of the circle, an away kid sees no one else', noCircle && !noCircle.includes(MUM) && !noCircle.includes(ADULT), JSON.stringify(noCircle))

@@ -39,7 +39,7 @@ Kept by this repo's owning session, per `~/Code/CLAUDE.md`, "Test self-audits". 
 | The token leaves the address bar; strict CSP on BlueMapAuth's own pages | `theHandOffPageMovesTheTokenOutOfTheAddressBarUnderAStrictPolicy` |
 | A kid away from the game sees only their worlds' maps and their circle (D54) | `anAwayKidSeesOnlyTheirWorldsMapsAndTheirCircle` |
 | A world the viewer can't enter: list entry, tiles, markers and players all absent, with the same 404 as a missing map | `anAdultWorldsMapIsNotThereForAKidAtAll` |
-| In game, chat's reach decides (D41) | `anAdultSeesBothWorldsAndThePlayersTheyMayReach` (the reach rules themselves are Mayor' tests) |
+| In game, chat's reach decides (D41) | `anAdultSeesBothWorldsAndThePlayersTheyMayReach` (the reach rules themselves are Posse's tests) |
 | Odd BlueMap data shows nobody; a broken BlueMap shows an empty error | `oddPlayerListsShowNobody`, `aBrokenBlueMapGivesAnEmptyErrorWithNoDetails` |
 | Map access ends within 30 s of WelcomeWagon's session, and after a day at most | `signingOutOfWelcomeWagonEndsTheMapWithin30Seconds`, `aMapSessionLastsADayAtMost` |
 | Cookies and auth headers never reach BlueMap; its headers don't come back | `cookiesAndOtherHeadersNeverReachBlueMapAndItsHeadersDontComeBack` |
@@ -47,13 +47,13 @@ Kept by this repo's owning session, per `~/Code/CLAUDE.md`, "Test self-audits". 
 | Unsafe config never starts: bind, BlueMap address, URLs, proxies, permission, limits | `SetupTest` (8 tests) |
 
 Gaps, with why:
-- **LiveAccess** (the calls into WelcomeWagon, Mayor, BlueMap and LuckPerms) is covered by the bot test, `test/live/bluemapauth.mjs`, 25/25 on 2026-11-11 with real plugins. It covers:
+- **LiveAccess** (the calls into WelcomeWagon, Posse, BlueMap and LuckPerms) is covered by the bot test, `test/live/bluemapauth.mjs`, 25/25 on 2026-11-11 with real plugins. It covers:
   - an away kid sees only their circle (D54), and in game, chat's reach (D41);
   - an adults-only world's map is absent for a kid;
   - losing a circle or a world reaches the map within 30 seconds;
   - signing out of WelcomeWagon, or removal from the whitelist, ends map access within 30 seconds.
 
-  The fail-closed paths have their own run, `MK_TEST_MISSING=1`, which passed 8/8 on 2026-11-11 without Mayor or LuckPerms:
+  The fail-closed paths have their own run, `MK_TEST_MISSING=1`, which passed 8/8 on 2026-11-11 without Posse or LuckPerms:
   - an away viewer gets no maps and no players;
   - an operator in game sees only themselves;
   - `/bluemapauth status` names what's missing.

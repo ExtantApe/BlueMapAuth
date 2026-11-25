@@ -10,11 +10,11 @@ browser ──https──▶ Caddy (map.<domain>) ──▶ BlueMapAuth (127.0.0
                                                ├─ WelcomeWagon: hand-off tokens, session still valid?
                                                ├─ BlueMap API: which world each map shows
                                                ├─ LuckPerms: may this player enter that world? (offline too)
-                                               └─ Mayor: may the viewer reach that player?
+                                               └─ Posse: may the viewer reach that player?
 ```
 
 - **BlueMapAuth is the only way in.** BlueMap's own web server listens on 127.0.0.1 only. BlueMapAuth also listens on 127.0.0.1 only, behind the same Caddy as the invite page.
-- **No hard dependencies** (D2). WelcomeWagon, LuckPerms and Mayor are each read by name. Without one, the part that needs it fails closed: no WelcomeWagon means nobody can sign in; no permissions check means no maps; no Mayor means no other players on the map.
+- **No hard dependencies** (D2). WelcomeWagon, LuckPerms and Posse are each read by name. Without one, the part that needs it fails closed: no WelcomeWagon means nobody can sign in; no permissions check means no maps; no Posse means no other players on the map.
 
 ## Signing in (D43)
 
@@ -34,17 +34,17 @@ browser ──https──▶ Caddy (map.<domain>) ──▶ BlueMapAuth (127.0.0
 | the web app (`/`, `/assets/...`, `/lang/...`) | passed through | the sign-in page instead of the app |
 
 - **Which worlds:** the same permission the server uses, `multiverse.access.<world>`, read through LuckPerms so it works while the player is offline. Can't read it: no map.
-- **Which players:** with the viewer online in game, Mayor' `mayReach(viewer, target)`, exactly chat's rule. With the viewer not in game (D54): only players who share a Mayor circle with them. If Mayor can't answer, nobody.
+- **Which players:** with the viewer online in game, Posse's `mayReach(viewer, target)`, exactly chat's rule. With the viewer not in game (D54): only players who share a Posse circle with them. If Posse can't answer, nobody.
 - Every answer carries `Cache-Control: private, no-store` for live data, the same security headers as the invite page, and no CORS.
 
 ## Changes in other plugins
 
 - **WelcomeWagon:** a hand-off service (make a token for the welcome view's link, redeem it once, say whether a session is still valid) and the "Open the map" link, shown only when a map address is set.
-- **Mayor:** `sharesCircle(UUID viewer, UUID target)` for a viewer who isn't in game (D54), by circles only.
+- **Posse:** `sharesCircle(UUID viewer, UUID target)` for a viewer who isn't in game (D54), by circles only.
 
 ## Tests
 
-Bots and HTTP, on throwaway servers with BlueMap, LuckPerms, Mayor and WelcomeWagon:
+Bots and HTTP, on throwaway servers with BlueMap, LuckPerms, Posse and WelcomeWagon:
 
 - an unsigned visitor gets nothing: not the map list, not a tile, not players.json;
 - a kid account never receives an adult world's map list entry, tiles or markers, and never an adult player in players.json;
