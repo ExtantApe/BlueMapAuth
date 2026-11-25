@@ -344,7 +344,7 @@ class MapServerTest {
         String adult = signIn(ADULT);
         var r = get("/maps/adult_map/live/markers.json", adult);
         assertEquals(200, r.statusCode());
-        assertEquals("{}", r.body(), "markers can carry positions Mayor hasn't checked");
+        assertEquals("{}", r.body(), "markers can carry positions Posse hasn't checked");
     }
 
     @Test

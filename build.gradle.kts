@@ -3,7 +3,7 @@ plugins {
 }
 
 group = "com.extantape"
-version = "0.2.3"
+version = "0.3.0"
 
 java {
     toolchain.languageVersion.set(JavaLanguageVersion.of(25))

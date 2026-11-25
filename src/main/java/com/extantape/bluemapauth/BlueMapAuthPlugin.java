@@ -90,7 +90,7 @@ public final class BlueMapAuthPlugin extends JavaPlugin {
                 to.sendMessage(Component.text(server != null ? "Serving the map on port " + server.port() + ", " + access.mapWorlds().size() + " map(s) known."
                         : "Not serving the map.", server != null ? NamedTextColor.GREEN : NamedTextColor.YELLOW));
                 for (String p : problems) to.sendMessage(Component.text("- " + p, NamedTextColor.RED));
-                for (String name : List.of("WelcomeWagon", "BlueMap", "LuckPerms", "Mayor")) {
+                for (String name : List.of("WelcomeWagon", "BlueMap", "LuckPerms", "Posse")) {
                     boolean on = getServer().getPluginManager().isPluginEnabled(name);
                     to.sendMessage(Component.text(name + ": " + (on ? "found" : "missing, so " + missing(name)), on ? NamedTextColor.WHITE : NamedTextColor.RED));
                 }

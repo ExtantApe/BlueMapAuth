@@ -185,7 +185,7 @@ public final class MapServer {
                     String body = fetchJson(path);
                     json(x, body == null ? JsonFilter.EMPTY_PLAYERS : JsonFilter.players(body, ps -> access.visible(v.uuid(), ps)));
                 } else if (r.kind() == Kind.MAP_MARKERS) {
-                    json(x, "{}"); // markers can carry player positions that Mayor hasn't checked, so none are sent
+                    json(x, "{}"); // markers can carry player positions that Posse hasn't checked, so none are sent
                 } else if (r.kind() == Kind.MAP_HEAD) {
                     if (!access.visible(v.uuid(), Set.of(r.player())).contains(r.player())) { plain(x, 404, "Not found."); return; }
                     pass(x, path, "private, no-cache");

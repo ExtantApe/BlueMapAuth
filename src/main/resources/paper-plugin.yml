@@ -19,7 +19,7 @@ dependencies:
       load: BEFORE
       required: false
       join-classpath: false
-    Mayor:
+    Posse:
       load: BEFORE
       required: false
       join-classpath: false
